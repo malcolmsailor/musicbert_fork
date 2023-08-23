@@ -17,6 +17,7 @@ from multiprocessing import Lock, Manager, Pool
 
 import miditoolkit
 import numpy as np
+from typing import Tuple, Optional, List, Dict
 
 np.int = int  # type:ignore
 
@@ -27,17 +28,17 @@ LOGGER = logging.getLogger(__name__)
 # type aliases
 # ----------------------------------------------------------------------------------
 
-TimeSigTup = tuple[int, int]
+TimeSigTup = Tuple[int, int]
 
-BarToken = int | None
-PositionToken = int | None
-InstrumentToken = int | None
-PitchToken = int | None
-DurationToken = int | None
-VelocityToken = int | None
-TimeSigToken = int | None
-TempoToken = int | None
-OctupleEncoding = tuple[
+BarToken = Optional[int]
+PositionToken = Optional[int]
+InstrumentToken = Optional[int]
+PitchToken = Optional[int]
+DurationToken = Optional[int]
+VelocityToken = Optional[int]
+TimeSigToken = Optional[int]
+TempoToken = Optional[int]
+OctupleEncoding = Tuple[
     BarToken,
     PositionToken,
     InstrumentToken,
@@ -52,12 +53,18 @@ OctupleEncoding = tuple[
 # constants
 # ----------------------------------------------------------------------------------
 
-PREFIX = os.getenv("MUSICBERT_OUTPUTPATH", "/Users/malcolm/tmp/composer_classification")
+PREFIX = os.getenv(
+    "MUSICBERT_OUTPUTPATH", 
+    os.path.join(
+        os.getenv("DATASETS_DIR", os.path.expanduser("~/tmp")),
+        "composer_classification",
+        )
+    )
 
 # TODO: (Malcolm 2023-08-11) add multiprocess flag
 
 MULTIPROCESS = False
-MAX_FILES: int | None = 10
+MAX_FILES: Optional[int] = 10
 SEED = 42
 
 POS_RESOLUTION = 16  # per beat (quarter note)
@@ -85,7 +92,7 @@ MAX_INST = 127
 MAX_PITCH = 127
 MAX_VELOCITY = 127
 
-DATA_FOLDER = "/Users/malcolm/datasets/YCAC-1.0/MIDI/Composers/"
+DATA_FOLDER = os.path.join(os.environ["DATASETS_DIR"], "YCAC-1.0/MIDI/Composers/")
 MIN_FILES_PER_COMPOSER = 150
 # DATA_ZIP: zipfile.ZipFile | None = None
 OUTPUT_FILE = None
@@ -123,14 +130,14 @@ lock_set = Lock()
 # Percussion: Program=128 Pitch=[128,255]
 
 
-TS_DICT: dict[TimeSigTup, int] = dict()
-TS_LIST: list[TimeSigTup] = list()
+TS_DICT: Dict[TimeSigTup, int] = dict()
+TS_LIST: List[TimeSigTup] = list()
 for i in range(0, MAX_TS_DENOMINATOR + 1):  # 1 ~ 64
     for j in range(1, ((2**i) * MAX_NOTES_PER_BAR) + 1):
         TS_DICT[(j, 2**i)] = len(TS_DICT)
         TS_LIST.append((j, 2**i))
-DUR_ENC: list[int] = list()
-DUR_DEC: list[int] = list()
+DUR_ENC: List[int] = list()
+DUR_DEC: List[int] = list()
 for i in range(DURATION_MAX):
     for j in range(POS_RESOLUTION):
         DUR_DEC.append(len(DUR_ENC))
@@ -265,7 +272,7 @@ def MIDI_to_encoding(midi_obj) -> list:
     max_pos = min(max(notes_start_pos) + 1, TRUNC_POS)
 
     # (Measure, TimeSig, Pos, Tempo)
-    pos_to_info: list[list[int | None]] = [
+    pos_to_info: List[List[Optional[int]]] = [
         [None for _ in range(4)] for _ in range(max_pos)
     ]
 
@@ -314,7 +321,7 @@ def MIDI_to_encoding(midi_obj) -> list:
 
     cnt = 0
     bar = 0
-    measure_length: int | None = None
+    measure_length: Optional[int] = None
 
     # Set bar and bar-position tokens
     for j, this_pos in enumerate(pos_to_info):
@@ -332,7 +339,7 @@ def MIDI_to_encoding(midi_obj) -> list:
             cnt -= measure_length
             bar += 1
 
-    encoding: list[OctupleEncoding] = []
+    encoding: List[OctupleEncoding] = []
 
     # start_distribution is calculated in order to optionally filter out notes with
     #   high-perplexity start locations
@@ -394,7 +401,7 @@ def encoding_to_MIDI(encoding):
                 if i == 0
                 else bar_to_timesig[i - 1]
             )
-    bar_to_pos: list[None | int] = [None] * len(bar_to_timesig)
+    bar_to_pos: List[None | int] = [None] * len(bar_to_timesig)
     cur_pos = 0
     for i in range(len(bar_to_pos)):
         bar_to_pos[i] = cur_pos
@@ -556,7 +563,7 @@ def encode_file(file_name, midi_dict, output_file, targets_file):
                 )
                 return None
 
-        output_str_list: list[str] = []
+        output_str_list: List[str] = []
 
         # Iterate through overlapping samples
         sample_step: int = max(round(SAMPLE_LEN_MAX / SAMPLE_OVERLAP_RATE), 1)
@@ -570,7 +577,7 @@ def encode_file(file_name, midi_dict, output_file, targets_file):
             #   but I don't think bar should ever be None
             assert not any(octuple[OCT_BAR_I] is None for octuple in encoding)
 
-            bar_index_list: list[int] = [
+            bar_index_list: List[int] = [
                 encoding[i][OCT_BAR_I]
                 for i in range(L, R + 1)
                 if encoding[i][OCT_BAR_I] is not None
