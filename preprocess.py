@@ -15,7 +15,7 @@ import zipfile
 from functools import partial
 from itertools import chain
 from multiprocessing import Lock, Manager, Pool
-from typing import List, Tuple, Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 import miditoolkit
 import numpy as np
@@ -30,14 +30,14 @@ LOGGER = logging.getLogger(__name__)
 
 TimeSigTup = Tuple[int, int]
 
-BarToken = Optional[None]
-PositionToken = Optional[None]
-InstrumentToken = Optional[None]
-PitchToken = Optional[None]
-DurationToken = Optional[None]
-VelocityToken = Optional[None]
-TimeSigToken = Optional[None]
-TempoToken = Optional[None]
+BarToken = Optional[int]
+PositionToken = Optional[int]
+InstrumentToken = Optional[int]
+PitchToken = Optional[int]
+DurationToken = Optional[int]
+VelocityToken = Optional[int]
+TimeSigToken = Optional[int]
+TempoToken = Optional[int]
 OctupleEncoding = Tuple[
     BarToken,
     PositionToken,
@@ -59,7 +59,7 @@ PREFIX = os.path.join(os.environ["DATASETS_DIR"], "lmd", "musicbert")
 # TODO: (Malcolm 2023-08-11) add multiprocess flag
 
 MULTIPROCESS = True
-MAX_FILES: Optional[None] = None
+MAX_FILES: Optional[int] = None
 SEED = 42
 
 POS_RESOLUTION = 16  # per beat (quarter note)
@@ -254,7 +254,7 @@ def MIDI_to_encoding(midi_obj) -> list:
     max_pos = min(max(notes_start_pos) + 1, TRUNC_POS)
 
     # (Measure, TimeSig, Pos, Tempo)
-    pos_to_info: List[List[Optional[None]]] = [
+    pos_to_info: List[List[Optional[int]]] = [
         [None for _ in range(4)] for _ in range(max_pos)
     ]
 
@@ -303,7 +303,7 @@ def MIDI_to_encoding(midi_obj) -> list:
 
     cnt = 0
     bar = 0
-    measure_length: Optional[None] = None
+    measure_length: Optional[int] = None
 
     # Set bar and bar-position tokens
     for j, this_pos in enumerate(pos_to_info):
@@ -383,7 +383,7 @@ def encoding_to_MIDI(encoding):
                 if i == 0
                 else bar_to_timesig[i - 1]
             )
-    bar_to_pos: List[Optional[None]] = [None] * len(bar_to_timesig)
+    bar_to_pos: List[Optional[int]] = [None] * len(bar_to_timesig)
     cur_pos = 0
     for i in range(len(bar_to_pos)):
         bar_to_pos[i] = cur_pos
