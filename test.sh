@@ -17,7 +17,7 @@ N_GPU_LOCAL=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
 UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${N_GPU_LOCAL}))
 CHECKPOINT_SUFFIX=${NN_ARCH}
 
-while getopts "d:r:a:u:w" opt; do
+while getopts "d:r:a:u:w:" opt; do
     case $opt in
         d) DATA_BIN_DIR="$OPTARG" ;;
         r) USER_DIR="$OPTARG" ;;
@@ -39,17 +39,12 @@ then
     exit 1
 fi
 
-echo WARMUP_UPDATES=$WARMUP_UPDATES
-echo TOTAL_UPDATES=$TOTAL_UPDATES
-
-exit 0
-
 
 shift "$((OPTIND - 1))"
 
 set -x
 fairseq-train ${DATA_BIN_DIR} --user-dir ${USER_DIR} \
-    --restore-file checkpoints/checkpoint_last_${CHECKPOINT_SUFFIX}.pt \
+    --restore-file ${CHECKPOINTS_DIR}/checkpoint_last_${CHECKPOINT_SUFFIX}.pt \
     --task masked_lm --criterion masked_lm \
     --arch ${NN_ARCH} --sample-break-mode complete --tokens-per-sample ${TOKENS_PER_SAMPLE} \
     --optimizer adam --adam-betas '(0.9,0.98)' --adam-eps 1e-6 --clip-norm 0.0 \
