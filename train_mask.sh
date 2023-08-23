@@ -10,11 +10,17 @@ PEAK_LR=0.0005
 TOKENS_PER_SAMPLE=8192
 BATCH_SIZE=256
 MAX_SENTENCES=4
-# NN_ARCH=small
-# NN_ARCH=musicbert_${2:-${NN_ARCH}}
-NN_ARCH=musicbert_small
-N_GPU_LOCAL=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
-UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${N_GPU_LOCAL}))
+
+if command -v nvidia-smi > /dev/null 2>&1 ;
+then
+    N_GPU_LOCAL=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+else
+    N_GPU_LOCAL=0
+fi
+
+UPDATE_FREQ_DENOM=$((N_GPU_LOCAL>1 ? N_GPU_LOCAL : 1))
+UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${UPDATE_FREQ_DENOM}))
+
 CHECKPOINT_SUFFIX=${NN_ARCH}
 
 while getopts "d:r:a:u:w" opt; do
@@ -48,7 +54,8 @@ exit 0
 shift "$((OPTIND - 1))"
 
 set -x
-fairseq-train ${DATA_BIN_DIR} --user-dir ${USER_DIR} \
+fairseq-train ${DATA_BIN_DIR} \
+    --user-dir ${USER_DIR} \
     --restore-file checkpoints/checkpoint_last_${CHECKPOINT_SUFFIX}.pt \
     --task masked_lm --criterion masked_lm \
     --arch ${NN_ARCH} --sample-break-mode complete --tokens-per-sample ${TOKENS_PER_SAMPLE} \
