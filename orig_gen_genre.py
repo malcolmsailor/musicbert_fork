@@ -30,8 +30,10 @@ manager = Manager()
 all_data = manager.list()
 pool_num = 24
 
+GENRE_MAP_JSON = os.path.join(os.environ["DATASETS_DIR"], "midi_genre_map.json")
+
 labels = dict()
-with open("midi_genre_map.json") as f:
+with open(GENRE_MAP_JSON) as f:
     for s in json.load(f)[subset].items():
         labels[s[0]] = tuple(sorted(set(i.strip().replace(" ", "-") for i in s[1])))
 
