@@ -6,6 +6,8 @@ WARMUP_UPDATES=4000
 PEAK_LR=0.00005
 TOKENS_PER_SAMPLE=8192
 MAX_POSITIONS=8192
+# NB BATCH_SIZE is only used in the UPDATE_FREQ calculation below; the actual batch size
+#   to fairseq-train is set by MAX_SENTENCES arg
 BATCH_SIZE=64
 MAX_SENTENCES=4
 N_GPU_LOCAL=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)

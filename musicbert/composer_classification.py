@@ -12,22 +12,35 @@ LOGGER = logging.getLogger(__name__)
 
 @register_task("composer_classification")
 class ComposerClassificationTask(LegacyFairseqTask):
-    def __init__(self, args, input_vocab, label_vocab):
-        super().__init__(args)
-        self.input_vocab = input_vocab
-        self.targets_vocab = label_vocab
+
+    @staticmethod
+    def add_args(parser):
+        # Add some command-line arguments for specifying where the data is
+        # located and the maximum supported input length.
+        parser.add_argument('data', metavar='FILE',
+                            help='file prefix for data')
+        # parser.add_argument('--max-positions', default=1024, type=int,
+        #                     help='max input length')
+        parser.add_argument("--tokens-per-sample", default=1024)
 
     @classmethod
     def setup_task(cls, args, **kwargs):
         # Here we can perform any setup required for the task. This may include
         # loading Dictionaries, initializing shared Embedding layers, etc.
         # In this case we'll just load the Dictionaries.
-        input_vocab = Dictionary.load(os.path.join(args.data, "dict.input.txt"))
-        label_vocab = Dictionary.load(os.path.join(args.data, "dict.targets.txt"))
+        input_vocab = Dictionary.load(os.path.join(args.data, "input0", "dict.txt"))
+        label_vocab = Dictionary.load(os.path.join(args.data, "label", "dict.txt"))
         print("| [input] dictionary: {} types".format(len(input_vocab)))
         print("| [label] dictionary: {} types".format(len(label_vocab)))
 
         return ComposerClassificationTask(args, input_vocab, label_vocab)  # type:ignore
+
+    def __init__(self, args, input_vocab, label_vocab):
+        super().__init__(args)
+        self.input_vocab = input_vocab
+        self.targets_vocab = label_vocab
+        # TODO: (Malcolm 2023-08-28) get from argument
+        self._max_positions = 1024 * 8
 
     def _load_octuple_data(self, data_path):
         input0 = data_utils.load_indexed_dataset(
@@ -40,15 +53,18 @@ class ComposerClassificationTask(LegacyFairseqTask):
         return src_dataset
 
     def _load_targets_data(self, targets_data_path):
-        labels = []
+        labels = data_utils.load_indexed_dataset(
+            targets_data_path, self.targets_vocab, self.args.dataset_impl
+        )
+        # labels = []
 
-        with open(targets_data_path) as file:
-            for line in file:
-                label = line.strip()
-                labels.append(
-                    # Convert label to a numeric ID.
-                    torch.LongTensor([self.targets_vocab.add_symbol(label)])
-                )
+        # with open(targets_data_path) as file:
+        #     for line in file:
+        #         label = line.strip()
+        #         labels.append(
+        #             # Convert label to a numeric ID.
+        #             torch.LongTensor([self.targets_vocab.add_symbol(label)])
+        #         )
         return labels
 
     def load_dataset(self, split, **kwargs):
@@ -73,7 +89,7 @@ class ComposerClassificationTask(LegacyFairseqTask):
         """Return the max input length allowed by the task."""
         # The source should be less than *args.max_positions* and the "target"
         # has max length 1.
-        return (self.args.max_positions, 1)
+        return (self._max_positions, 1)
 
     @property
     def source_dictionary(self):
