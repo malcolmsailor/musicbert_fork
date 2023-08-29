@@ -1,8 +1,10 @@
-# TODO: (Malcolm 2023-08-29) restore after completing this script
-# if [[ `git status --porcelain` ]]; then
-#   echo "There are uncommitted changes; commit them then rerun"
-#   exit 1
-# fi
+# For the sake of reproducibility, we want to commit all changes in the directory before
+# running. Then we can get the git hash and command from wandb to reproduce (hopefully!)
+
+if [[ `git status --porcelain` ]]; then
+  echo "There are uncommitted changes; commit them then rerun"
+  exit 1
+fi
 
 TOTAL_UPDATES=125000
 WARMUP_UPDATES=25000
@@ -14,7 +16,7 @@ PEAK_LR=0.0005 # Borrowed from musicbert
 BATCH_SIZE=64
 MAX_SENTENCES=4
 
-MAX_POSITIONS=8192 # TODO: (Malcolm 2023-08-29) update
+TOKENS_PER_SAMPLE=8192
 
 HEAD_NAME="composer_classification"
 NUM_CLASSES=7  # TODO make a parameter or something
@@ -94,7 +96,7 @@ FAIRSEQ_ARGS=(
     --lr-scheduler polynomial_decay 
     --lr ${PEAK_LR}
     --log-format simple
-    --log-interval 1 # TODO restore a higher value
+    --log-interval 50
     --warmup-updates ${WARMUP_UPDATES} 
     --total-num-update ${TOTAL_UPDATES}
     --max-update ${TOTAL_UPDATES}
@@ -102,11 +104,11 @@ FAIRSEQ_ARGS=(
     --no-epoch-checkpoints
     --find-unused-parameters
 
-    # TODO: (Malcolm 2023-08-29) update best checkpoint metric
-    --best-checkpoint-metric accuracy 
+    # TODO: (Malcolm 2023-08-29) update best checkpoint metric (f1?)
+    --best-checkpoint-metric f1 
     --maximize-best-checkpoint-metric
 
-    # Args from musicbert not (yet?) using:
+    # I believe we need to keep max positions the same as musicbert
     --max-positions 8192
 
     --required-batch-size-multiple 1
@@ -116,7 +118,7 @@ FAIRSEQ_ARGS=(
 
     # Why does musicbert set num workesr to 0???
     # TODO: (Malcolm 2023-08-29) set number of workers
-    # --num-workers 0 \
+    # --num-workers 0
 )
 
 set -x
