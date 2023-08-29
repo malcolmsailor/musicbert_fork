@@ -8,7 +8,7 @@
 #SBATCH -o /home/ms3682/slurm_output/%j.out # Note that directory will not be created if it does not exist; also, ~ expansion doesn't seem to work
 
 module load miniconda
-conda activate fairseq
+conda activate newbert
 
 set -x
 
