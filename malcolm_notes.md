@@ -11,6 +11,7 @@
     - wandb
     - miditoolkit (required for preprocessing w/ musicbert)
     - matplotlib (unspecified requirement for miditoolkit)
+    - I have installed each of these (with pip) in the `newbert` env; I don't believe that these installations cause any issues.
 
 `newbert`: an attempt to recreate the `musicbert4` environment
 - I have actually been using this environment
@@ -66,6 +67,9 @@ Finally got classification to work by basing it more closely on https://github.c
 Next task is to see if I can overfit.
 
 To create a subset for overfitting,
-- 1. run `MUSICBERT_DATA_LIMIT=<LIMIT> python preprocess_composer_classification.py` substituting an appropriate file limit. (The files are cut into multiple segments so there will be more samples than files.)
+- 1. run `MUSICBERT_COMPOSER_LIMIT=<LIMIT> MUSICBERT_DATA_LIMIT=<LIMIT> python preprocess_composer_classification.py` substituting an appropriate file limit. (The files are cut into multiple segments so there will be more samples than files.)
   - TODO maybe we want to look at sampling randomly from each file rather than sampling deterministically?
+- 2. [Optional] Run `bash repeat_train_set.sh <path> <n repetitions>` so that the training set is longer.
 - 2. run `bash binarize_composer_classification.sh /Users/malcolm/datasets/composer_classification_limit_2_data_raw` (adjusting the path as necessary)
+
+Training:

@@ -35,8 +35,13 @@ PREFIX = os.getenv(
 assert PREFIX.endswith("_data_raw")
 LIMIT = os.getenv("MUSICBERT_DATA_LIMIT", None)
 if LIMIT is not None:
-    PREFIX = f"{PREFIX[:-9]}_limit_{LIMIT}_data_raw"
+    PREFIX = f"{PREFIX[:-9]}_file_limit_{LIMIT}_data_raw"
     LIMIT = int(LIMIT)
+
+TOP_N_COMPOSERS = os.getenv("MUSICBERT_COMPOSER_LIMIT", None)
+if TOP_N_COMPOSERS is not None:
+    PREFIX = f"{PREFIX[:-9]}_composer_limit_{TOP_N_COMPOSERS}_data_raw"
+    TOP_N_COMPOSERS = int(TOP_N_COMPOSERS)
 
 
 # ----------------------------------------------------------------------------------
@@ -700,9 +705,9 @@ def encoding_to_str(e):
 
 
 def get_paths():
-    out = []
     total_composers = 0
     allowed_composers = 0
+    accumulator = {}
     for composer in os.listdir(DATA_FOLDER):
         if not os.path.isdir(os.path.join(DATA_FOLDER, composer)):
             continue
@@ -715,12 +720,19 @@ def get_paths():
         if len(midi_paths) < MIN_FILES_PER_COMPOSER:
             continue
         allowed_composers += 1
-        out.extend([os.path.join(DATA_FOLDER, composer, m) for m in midi_paths])
+        accumulator[composer] = [os.path.join(DATA_FOLDER, composer, m) for m in midi_paths]
+        # out.extend([os.path.join(DATA_FOLDER, composer, m) for m in midi_paths])
     LOGGER.info(
         f"{allowed_composers}/{total_composers} composers "
         f"have minimum of {MIN_FILES_PER_COMPOSER} midi files"
     )
-    return out
+    if TOP_N_COMPOSERS is None:
+        return list(chain(*out.values()))
+    tuples = list(accumulator.items())
+    tuples.sort(key=lambda x: len(x[1]))
+    top_tuples = tuples[:TOP_N_COMPOSERS]
+    return list(chain(*[x[1] for x in top_tuples]))
+
 
 
 def main():
