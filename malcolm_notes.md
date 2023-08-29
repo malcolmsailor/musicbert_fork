@@ -52,3 +52,15 @@ Trying to run `bash train_genre.sh ~/project/datasets/topmagd 13 0 ~/project/che
 
 Wandb login is cached (presumably key is stored in config somewhere).
 Use `--wandb-project ${WANDB_PROJECT}` with fairseq to log.
+
+
+# 2023-08-29
+
+Finally got classification to work by basing it more closely on https://github.com/facebookresearch/fairseq/blob/main/examples/roberta/README.custom_classification.md. It turns out not to be necessary to write a custom task. (Or, at least, so it appears---I'll need to actually see the results.)
+
+Next task is to see if I can overfit.
+
+To create a subset for overfitting,
+- 1. run `MUSICBERT_DATA_LIMIT=<LIMIT> python preprocess_composer_classification.py` substituting an appropriate file limit. (The files are cut into multiple segments so there will be more samples than files.)
+  - TODO maybe we want to look at sampling randomly from each file rather than sampling deterministically?
+- 2. run `bash binarize_composer_classification.sh /Users/malcolm/datasets/composer_classification_limit_2_data_raw` (adjusting the path as necessary)

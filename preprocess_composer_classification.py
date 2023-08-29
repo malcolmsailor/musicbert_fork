@@ -24,6 +24,21 @@ np.int = int  # type:ignore
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
+DATA_FOLDER = os.path.join(os.environ["DATASETS_DIR"], "YCAC-1.0/MIDI/Composers/")
+PREFIX = os.getenv(
+    "MUSICBERT_OUTPUTPATH",
+    os.path.join(
+        os.getenv("DATASETS_DIR", os.path.expanduser("~/tmp")),
+        "composer_classification_data_raw",
+    ),
+)
+assert PREFIX.endswith("_data_raw")
+LIMIT = os.getenv("MUSICBERT_DATA_LIMIT", None)
+if LIMIT is not None:
+    PREFIX = f"{PREFIX[:-9]}_limit_{LIMIT}_data_raw"
+    LIMIT = int(LIMIT)
+
+
 # ----------------------------------------------------------------------------------
 # type aliases
 # ----------------------------------------------------------------------------------
@@ -53,18 +68,9 @@ OctupleEncoding = Tuple[
 # constants
 # ----------------------------------------------------------------------------------
 
-PREFIX = os.getenv(
-    "MUSICBERT_OUTPUTPATH",
-    os.path.join(
-        os.getenv("DATASETS_DIR", os.path.expanduser("~/tmp")),
-        "composer_classification",
-    ),
-)
-
 # TODO: (Malcolm 2023-08-11) add multiprocess flag
 
 MULTIPROCESS = False
-MAX_FILES: Optional[int] = 10
 SEED = 42
 
 POS_RESOLUTION = 16  # per beat (quarter note)
@@ -92,7 +98,7 @@ MAX_INST = 127
 MAX_PITCH = 127
 MAX_VELOCITY = 127
 
-DATA_FOLDER = os.path.join(os.environ["DATASETS_DIR"], "YCAC-1.0/MIDI/Composers/")
+
 MIN_FILES_PER_COMPOSER = 150
 # DATA_ZIP: zipfile.ZipFile | None = None
 OUTPUT_FILE = None
@@ -723,21 +729,13 @@ def main():
         midi_dict = manager.dict()
     else:
         midi_dict = {}
-    # data_path = input("Dataset zip path: ")
-    # prefix = input("OctupleMIDI output path: ")
     if os.path.exists(PREFIX):
         print("Output path {} already exists!".format(PREFIX))
     else:
         os.system("mkdir -p {}".format(PREFIX))
     file_list = get_paths()
-    # file_list = [
-    #     n
-    #     for n in DATA_ZIP.namelist()
-    #     if n[-4:].lower() == ".mid" or n[-5:].lower() == ".midi"
-    # ]
     random.seed(SEED)
     random.shuffle(file_list)
-    file_list = file_list[:MAX_FILES]
 
     # Save the token vocabulary
     gen_inputs_dictionary("{}/dict.input.txt".format(PREFIX))
@@ -749,10 +747,9 @@ def main():
     for sp in ["train", "valid", "test"]:
         total_file_cnt = len(file_list)
         file_list_split = []
-        # TODO: (Malcolm 2023-08-22) change proportions
-        if sp == "train":  # 98%
+        if sp == "train":
             file_list_split = file_list[: TRAIN_PCT * total_file_cnt // 100]
-        if sp == "valid":  # 1%
+        if sp == "valid":
             file_list_split = file_list[
                 TRAIN_PCT
                 * total_file_cnt
@@ -760,10 +757,11 @@ def main():
                 * total_file_cnt
                 // 100
             ]
-        if sp == "test":  # 1%
+        if sp == "test":
             file_list_split = file_list[
                 (TRAIN_PCT + VALID_PCT) * total_file_cnt // 100 :
             ]
+        file_list_split = file_list_split[:LIMIT]
 
         output_file = "{}/midi_{}.txt".format(PREFIX, sp)
         targets_file = "{}/targets_{}.txt".format(PREFIX, sp)
