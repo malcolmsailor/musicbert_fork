@@ -33,8 +33,9 @@ fi
 
 UPDATE_FREQ_DENOM=$((N_GPU_LOCAL>1 ? N_GPU_LOCAL : 1))
 UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${UPDATE_FREQ_DENOM}))
+LOG_INTERVAL=50
 
-while getopts "d:r:a:u:w:W:c:" opt; do
+while getopts "d:r:a:u:w:W:c:l:" opt; do
     case $opt in
         d) DATA_BIN_DIR="$OPTARG" ;;
         r) USER_DIR="$OPTARG" ;;
@@ -43,6 +44,7 @@ while getopts "d:r:a:u:w:W:c:" opt; do
         w) WARMUP_UPDATES="$OPTARG" ;;
         W) WANDB_PROJECT="$OPTARG" ;;
         c) RESTORE_CHECKPOINT="$OPTARG" ;;
+        l) LOG_INTERVAL="$OPTARG" ;;
         \?) echo "Usage: $(basename "$0") \
             -d data_dir \
             -r user_dir \
@@ -99,7 +101,7 @@ FAIRSEQ_ARGS=(
     --lr-scheduler polynomial_decay 
     --lr ${PEAK_LR}
     --log-format simple
-    --log-interval 50
+    --log-interval ${LOG_INTERVAL}
     --warmup-updates ${WARMUP_UPDATES} 
     --total-num-update ${TOTAL_UPDATES}
     --max-update ${TOTAL_UPDATES}
