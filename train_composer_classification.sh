@@ -19,7 +19,7 @@ MAX_SENTENCES=4
 TOKENS_PER_SAMPLE=8192
 
 HEAD_NAME="composer_classification"
-NUM_CLASSES=7  # TODO make a parameter or something
+
 
 
 if command -v nvidia-smi > /dev/null 2>&1 ;
@@ -52,6 +52,9 @@ while getopts "d:r:a:u:w:W:c:" opt; do
             [-w warmup steps]"
     esac
 done
+
+
+NUM_CLASSES=$( wc -l < "${DATA_BIN_DIR}"/label/dict.txt )
 
 if [ -z "$DATA_BIN_DIR" ] || [ -z "$USER_DIR" ] || [ -z "$WANDB_PROJECT" ] || [ -z "$NN_ARCH" ]
 then
