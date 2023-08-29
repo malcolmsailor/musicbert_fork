@@ -12,22 +12,22 @@ LOGGER = logging.getLogger(__name__)
 
 @register_task("composer_classification")
 class ComposerClassificationTask(LegacyFairseqTask):
-
     @staticmethod
     def add_args(parser):
         # Add some command-line arguments for specifying where the data is
         # located and the maximum supported input length.
-        parser.add_argument('data', metavar='FILE',
-                            help='file prefix for data')
+        parser.add_argument("data", metavar="FILE", help="file prefix for data")
         # parser.add_argument('--max-positions', default=1024, type=int,
         #                     help='max input length')
-        parser.add_argument("--tokens-per-sample", default=1024)
+        parser.add_argument("--tokens-per-sample", default=8192)
 
     @classmethod
     def setup_task(cls, args, **kwargs):
         # Here we can perform any setup required for the task. This may include
         # loading Dictionaries, initializing shared Embedding layers, etc.
         # In this case we'll just load the Dictionaries.
+        # input_vocab = Dictionary.load(os.path.join(args.data, "dict.input.txt"))
+        # label_vocab = Dictionary.load(os.path.join(args.data, "dict.label.txt"))
         input_vocab = Dictionary.load(os.path.join(args.data, "input0", "dict.txt"))
         label_vocab = Dictionary.load(os.path.join(args.data, "label", "dict.txt"))
         print("| [input] dictionary: {} types".format(len(input_vocab)))
@@ -53,24 +53,34 @@ class ComposerClassificationTask(LegacyFairseqTask):
         return src_dataset
 
     def _load_targets_data(self, targets_data_path):
-        labels = data_utils.load_indexed_dataset(
-            targets_data_path, self.targets_vocab, self.args.dataset_impl
-        )
-        # labels = []
+        # labels = data_utils.load_indexed_dataset(
+        #     targets_data_path, self.targets_vocab, self.args.dataset_impl
+        # )
+        # TODO: (Malcolm 2023-08-28) replace this hack
+        # split = os.path.basename(targets_data_path)
+        # targets_data_path = (
+        #     f"/Users/malcolm/tmp/composer_classification_data_raw/targets_{split}.txt"
+        # )
+        labels = []
 
-        # with open(targets_data_path) as file:
-        #     for line in file:
-        #         label = line.strip()
-        #         labels.append(
-        #             # Convert label to a numeric ID.
-        #             torch.LongTensor([self.targets_vocab.add_symbol(label)])
-        #         )
+        with open(targets_data_path) as file:
+            for line in file:
+                label = line.strip()
+                labels.append(
+                    # Convert label to a numeric ID.
+                    torch.LongTensor([self.targets_vocab.add_symbol(label)])
+                )
         return labels
 
     def load_dataset(self, split, **kwargs):
+        # prefix = os.path.join(self.args.data, "{}.input-label".format(split))
+        # input_data_path = prefix + ".input"
+        # src_dataset = self._load_octuple_data(input_data_path)
+        # targets_data_path = prefix + ".label"
+        # labels = self._load_targets_data(targets_data_path)
         input_data_path = os.path.join(self.args.data, "input0", split)
         src_dataset = self._load_octuple_data(input_data_path)
-        targets_data_path = os.path.join(self.args.data, "label", split)
+        targets_data_path = os.path.join(self.args.data, "label", f"{split}.label")
         labels = self._load_targets_data(targets_data_path)
         assert len(labels) == len(src_dataset)
         LOGGER.info(("| {} {} {} examples".format(self.args.data, split, len(labels))))
@@ -79,11 +89,12 @@ class ComposerClassificationTask(LegacyFairseqTask):
             src_sizes=src_dataset.sizes,
             src_dict=self.input_vocab,
             tgt=labels,
-            tgt_sizes=torch.ones(len(labels)),
+            tgt_sizes=torch.ones(len(labels), dtype=torch.long),
             tgt_dict=self.targets_vocab,
             left_pad_source=False,
             input_feeding=False,
         )
+        breakpoint()
 
     def max_positions(self):
         """Return the max input length allowed by the task."""

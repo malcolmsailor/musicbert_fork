@@ -14,10 +14,10 @@ import time
 from functools import partial
 from itertools import chain
 from multiprocessing import Lock, Manager, Pool
+from typing import Dict, List, Optional, Tuple
 
 import miditoolkit
 import numpy as np
-from typing import Tuple, Optional, List, Dict
 
 np.int = int  # type:ignore
 
@@ -54,12 +54,12 @@ OctupleEncoding = Tuple[
 # ----------------------------------------------------------------------------------
 
 PREFIX = os.getenv(
-    "MUSICBERT_OUTPUTPATH", 
+    "MUSICBERT_OUTPUTPATH",
     os.path.join(
         os.getenv("DATASETS_DIR", os.path.expanduser("~/tmp")),
         "composer_classification",
-        )
-    )
+    ),
+)
 
 # TODO: (Malcolm 2023-08-11) add multiprocess flag
 
@@ -401,7 +401,7 @@ def encoding_to_MIDI(encoding):
                 if i == 0
                 else bar_to_timesig[i - 1]
             )
-    bar_to_pos: List[None | int] = [None] * len(bar_to_timesig)
+    bar_to_pos: List[Optional[int]] = [None] * len(bar_to_timesig)
     cur_pos = 0
     for i in range(len(bar_to_pos)):
         bar_to_pos[i] = cur_pos

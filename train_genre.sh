@@ -10,9 +10,21 @@ MAX_POSITIONS=8192
 #   to fairseq-train is set by MAX_SENTENCES arg
 BATCH_SIZE=64
 MAX_SENTENCES=4
-N_GPU_LOCAL=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
-UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${N_GPU_LOCAL}))
+
+
+if command -v nvidia-smi > /dev/null 2>&1 ;
+then
+    N_GPU_LOCAL=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+else
+    N_GPU_LOCAL=0
+fi
+
+UPDATE_FREQ_DENOM=$((N_GPU_LOCAL>1 ? N_GPU_LOCAL : 1))
+UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${UPDATE_FREQ_DENOM}))
+
+# $1: either "topmagd" or "masd"
 if [ -z ${1+x} ]; then echo "subset not set" && exit 1; else echo "subset = $1"; fi
+# $2: number of classes (13 or 25 respectively)
 if [ -z ${2+x} ]; then echo "num classes not set" && exit 1; else echo "num classes = $2"; fi
 if [ -z ${3+x} ]; then echo "fold index not set" && exit 1; else echo "fold index = $3"; fi
 if [ -z ${4+x} ]; then echo "model not set" && exit 1; else echo "model = $4"; fi

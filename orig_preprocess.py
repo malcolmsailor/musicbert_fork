@@ -41,18 +41,14 @@ data_zip = None
 output_file = None
 
 
-lock_file = Lock()
-lock_write = Lock()
-lock_set = Lock()
-manager = Manager()
-midi_dict = manager.dict()
-
-
 # (0 Measure, 1 Pos, 2 Program, 3 Pitch, 4 Duration, 5 Velocity, 6 TimeSig, 7 Tempo)
 # (Measure, TimeSig)
 # (Pos, Tempo)
 # Percussion: Program=128 Pitch=[128,255]
 
+lock_file = Lock()
+lock_write = Lock()
+lock_set = Lock()
 
 ts_dict = dict()
 ts_list = list()
@@ -515,7 +511,12 @@ def encoding_to_str(e):
     )  # 8 - 1 for append_eos functionality of binarizer in fairseq
 
 
-if __name__ == "__main__":
+def main():
+    # These were defined at the top-level which is causing Python 3.8 to crash. To use
+    # this file we'll need to pass them as arguments or something.
+    manager = Manager()
+    midi_dict = manager.dict()
+
     data_path = input("Dataset zip path: ")
     prefix = input("OctupleMIDI output path: ")
     if os.path.exists(prefix):
@@ -554,3 +555,7 @@ if __name__ == "__main__":
             ok_cnt, all_cnt, ok_cnt / all_cnt * 100
         )
     )
+
+
+if __name__ == "__main__":
+    main()

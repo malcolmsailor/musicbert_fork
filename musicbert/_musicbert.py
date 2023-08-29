@@ -6,7 +6,7 @@ import logging
 import math
 import os
 from functools import lru_cache
-from typing import Optional, Tuple, Union, List
+from typing import List, Optional, Tuple, Union
 
 import fairseq.tasks.masked_lm
 import fairseq.tasks.sentence_prediction
@@ -283,7 +283,9 @@ class OctupleEncoder(TransformerSentenceEncoder):
         last_state_only: bool = False,
         positions: Optional[torch.Tensor] = None,
         token_embeddings: Optional[torch.Tensor] = None,
-    ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[List[torch.Tensor], torch.Tensor]]:
+    ) -> Union[
+        Tuple[torch.Tensor, torch.Tensor], Tuple[List[torch.Tensor], torch.Tensor]
+    ]:
         # tokens: batch * compound_seq
         assert tokens.ndim == 2
 
@@ -412,7 +414,8 @@ class MusicBERTModel(RobertaModel):
         if not hasattr(args, "max_positions"):
             args.max_positions = args.tokens_per_sample
         encoder = MusicBERTEncoder(args, task.source_dictionary)
-        return cls(args, encoder)  # type:ignore
+        out = cls(args, encoder)  # type:ignore
+        return out
 
 
 @register_model_architecture("musicbert", "musicbert")

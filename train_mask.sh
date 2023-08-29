@@ -45,10 +45,9 @@ while getopts "d:r:a:u:w:W:" opt; do
 done
 
 CHECKPOINT_SUFFIX=${NN_ARCH}
-
-if [ -z "$DATA_BIN_DIR" ] || [ -z "$USER_DIR" ] || [ -z "$WANDB_PROJECT" ]
+if [ -z "$DATA_BIN_DIR" ] || [ -z "$USER_DIR" ] || [ -z "$WANDB_PROJECT" ] || [ -z "$NN_ARCH" ]
 then
-    echo "-d data_dir, -r user dir, and -W wandb project are required"
+    echo "-d data_dir, -r user dir, -a architecture, and -W wandb project are required"
     exit 1
 fi
 
@@ -65,6 +64,6 @@ fairseq-train ${DATA_BIN_DIR} \
     --lr-scheduler polynomial_decay --lr ${PEAK_LR} --warmup-updates ${WARMUP_UPDATES} --total-num-update ${TOTAL_UPDATES} \
     --dropout 0.1 --attention-dropout 0.1 --weight-decay 0.01 \
     --batch-size ${MAX_SENTENCES} --update-freq ${UPDATE_FREQ} \
-    --max-update ${TOTAL_UPDATES} --log-format simple --log-interval 50 \
+    --max-update ${TOTAL_UPDATES} --log-format simple --log-interval 1 \
     --checkpoint-suffix _${CHECKPOINT_SUFFIX}
 set +x
