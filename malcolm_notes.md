@@ -73,3 +73,8 @@ To create a subset for overfitting,
 - 2. run `bash binarize_composer_classification.sh /Users/malcolm/datasets/composer_classification_limit_2_data_raw` (adjusting the path as necessary)
 
 Training:
+
+2023-08-29 13:43 overfitting on 5 files with 2 composers seems to work
+`bash train_composer_classification.sh -d ~/project/datasets/composer_classification_file_limit_5_composer_limit_2_data_bin -r musicbert/ -a base -W composer_classification_overfit -c ~/project/checkpoints/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt -w 5 -l 2`
+That said, loss goes to 0 so fast I'm wondering if there isn't a bug. It could also be that there are other obvious differences between the files (e.g., of orchestration or key) I suppose.
+

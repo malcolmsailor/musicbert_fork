@@ -727,7 +727,7 @@ def get_paths():
         f"have minimum of {MIN_FILES_PER_COMPOSER} midi files"
     )
     if TOP_N_COMPOSERS is None:
-        return list(chain(*out.values()))
+        return list(chain(*accumulator.values()))
     tuples = list(accumulator.items())
     tuples.sort(key=lambda x: len(x[1]))
     top_tuples = tuples[:TOP_N_COMPOSERS]
