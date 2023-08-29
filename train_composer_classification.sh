@@ -108,7 +108,7 @@ FAIRSEQ_ARGS=(
     --find-unused-parameters
 
     # TODO: (Malcolm 2023-08-29) update best checkpoint metric (f1?)
-    --best-checkpoint-metric f1 
+    --best-checkpoint-metric accuracy 
     --maximize-best-checkpoint-metric
 
     # I believe we need to keep max positions the same as musicbert
