@@ -7,8 +7,13 @@
 `musicbert3`: yet another attempt, installing numpy=1.23 downgrades torch to CPU version (from conda-forge channel), tried installing numpy then re-installing torch (from torch channel) 07:57
 
 `musicbert4`: 07:57 Trying to install numpy with pip. As of 2023-08-28 08:32 this environment seems to work! 
+- NB This env is missing:
+    - wandb
+    - miditoolkit (required for preprocessing w/ musicbert)
+    - matplotlib (unspecified requirement for miditoolkit)
 
 `newbert`: an attempt to recreate the `musicbert4` environment
+- I have actually been using this environment
 
 # Error messages
 
