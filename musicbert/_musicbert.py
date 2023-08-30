@@ -25,13 +25,14 @@ from fairseq.data import (
     data_utils,
 )
 from fairseq.models import register_model, register_model_architecture
-from fairseq.models.roberta import (
-    RobertaEncoder,
+from fairseq.models.roberta import (  # RobertaEncoder,
     RobertaModel,
     TransformerSentenceEncoder,
 )
 from fairseq.tasks import LegacyFairseqTask, register_task
 from fairseq.tasks.sentence_prediction import SentencePredictionTask
+
+from musicbert.freezable_roberta import FreezableRobertaEncoder
 
 LOGGER = logging.getLogger(__name__)
 
@@ -382,7 +383,7 @@ class OctupleEncoder(TransformerSentenceEncoder):
             return inner_states, sentence_rep
 
 
-class MusicBERTEncoder(RobertaEncoder):
+class MusicBERTEncoder(FreezableRobertaEncoder):
     def __init__(self, args, dictionary):
         super().__init__(args, dictionary)
         self.sentence_encoder = OctupleEncoder(

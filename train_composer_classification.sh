@@ -1,7 +1,7 @@
 # For the sake of reproducibility, we want to commit all changes in the directory before
 # running. Then we can get the git hash and command from wandb to reproduce (hopefully!)
 
-if [[ `git status --porcelain` ]]; then
+if [[ -z "DEBUG_MUSICBERT" ]] && [[ `git status --porcelain` ]]; then
   echo "There are uncommitted changes; commit them then rerun"
   exit 1
 fi
@@ -35,7 +35,9 @@ UPDATE_FREQ_DENOM=$((N_GPU_LOCAL>1 ? N_GPU_LOCAL : 1))
 UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${UPDATE_FREQ_DENOM}))
 LOG_INTERVAL=50
 
-while getopts "d:r:a:u:w:W:c:l:" opt; do
+FREEZE_ENCODER=""
+
+while getopts "d:r:a:u:w:W:c:l:f" opt; do
     case $opt in
         d) DATA_BIN_DIR="$OPTARG" ;;
         r) USER_DIR="$OPTARG" ;;
@@ -45,13 +47,15 @@ while getopts "d:r:a:u:w:W:c:l:" opt; do
         W) WANDB_PROJECT="$OPTARG" ;;
         c) RESTORE_CHECKPOINT="$OPTARG" ;;
         l) LOG_INTERVAL="$OPTARG" ;;
+        f) FREEZE_ENCODER="--freeze-encoder" ;;
         \?) echo "Usage: $(basename "$0") \
             -d data_dir \
             -r user_dir \
             -W wandb project \
             -a architecture \
             [-u total_updates] \
-            [-w warmup steps]"
+            [-w warmup steps] \
+            [-f] freeze encoder"
     esac
 done
 
@@ -72,19 +76,19 @@ else
 fi
 
 
-
 FAIRSEQ_ARGS=(
     ${DATA_BIN_DIR}
     ${CPU_FLAG}
     --user-dir ${USER_DIR}
     ${RESTORE_FLAG}
+    ${FREEZE_ENCODER}
     --wandb-project ${WANDB_PROJECT}
     --task sentence_prediction
     --arch ${NN_ARCH}
     --batch-size $MAX_SENTENCES 
     --update-freq $UPDATE_FREQ 
 
-    --criterion sentence_prediction
+    --criterion freezable_sentence_prediction
     --classification-head-name ${HEAD_NAME}
     --num-classes ${NUM_CLASSES}
 
