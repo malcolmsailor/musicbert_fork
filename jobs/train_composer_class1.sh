@@ -19,7 +19,8 @@ bash train_composer_classification.sh \
     -W composer_classification \
     -c /home/ms3682/project/checkpoints/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt \
     -u 50000 \
-    -w 10000
+    -w 10000 \
+    -f
 
 set +x
 
