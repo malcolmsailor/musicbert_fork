@@ -3,7 +3,7 @@
 #SBATCH --partition=gpu
 #SBATCH --gpus=4
 #SBATCH --job-name=train_class
-#SBATCH --time=1-00:00:00
+#SBATCH --time=3:00:00
 #SBATCH --mail-type=ALL
 #SBATCH -o /home/ms3682/slurm_output/%j.out # Note that directory will not be created if it does not exist; also, ~ expansion doesn't seem to work
 
