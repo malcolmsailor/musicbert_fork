@@ -9,4 +9,9 @@ if [[ `git status --porcelain` ]]; then
   exit 1
 fi
 
+# if [[ $(git rev-list @{u}..@ --count) != 0 ]]; then
+#     echo "There are unpushed commits; push them then rerun"
+#     exit 1
+# fi
+
 sbatch "${JOB}"
