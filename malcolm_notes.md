@@ -78,3 +78,9 @@ Training:
 `bash train_composer_classification.sh -d ~/project/datasets/composer_classification_file_limit_5_composer_limit_2_data_bin -r musicbert/ -a base -W composer_classification_overfit -c ~/project/checkpoints/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt -w 5 -l 2`
 That said, loss goes to 0 so fast I'm wondering if there isn't a bug. It could also be that there are other obvious differences between the files (e.g., of orchestration or key) I suppose.
 
+# 2023-08-30
+
+Training:
+- finetuning composer classification:
+    - this seems to work, although by the first validation epoch we're already ~82% acc and we seem to mostly be overfitting (~97% train acc) [https://wandb.ai/msailor/composer_classification/runs/zoqbk55s?workspace=user-msailor](https://wandb.ai/msailor/composer_classification/runs/zoqbk55s?workspace=user-msailor)
+    - freezing the encoder and training only the classification head gives much worse results but doesn't overfit as quickly: [https://wandb.ai/msailor/composer_classification/runs/f5eld9f8?workspace=user-msailor](https://wandb.ai/msailor/composer_classification/runs/f5eld9f8?workspace=user-msailor)
