@@ -84,3 +84,11 @@ Training:
 - finetuning composer classification:
     - this seems to work, although by the first validation epoch we're already ~82% acc and we seem to mostly be overfitting (~97% train acc) [https://wandb.ai/msailor/composer_classification/runs/zoqbk55s?workspace=user-msailor](https://wandb.ai/msailor/composer_classification/runs/zoqbk55s?workspace=user-msailor)
     - freezing the encoder and training only the classification head gives much worse results but doesn't overfit as quickly: [https://wandb.ai/msailor/composer_classification/runs/f5eld9f8?workspace=user-msailor](https://wandb.ai/msailor/composer_classification/runs/f5eld9f8?workspace=user-msailor)
+
+Wandb run name is initialized in fairseq-train like this:
+```python
+        wandb_run_name=os.environ.get(
+            "WANDB_NAME", os.path.basename(cfg.checkpoint.save_dir)
+        ),
+```
+This is kind of annoying as we don't take advantage of the mnemonic random naming of runs provided by wandb. Perhaps if WANDB_NAME is "" we will get a random name?
