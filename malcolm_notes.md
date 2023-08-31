@@ -95,3 +95,27 @@ Training:
     - freezing the encoder and training only the classification head gives much worse results but doesn't overfit as quickly: [https://wandb.ai/msailor/composer_classification/runs/f5eld9f8?workspace=user-msailor](https://wandb.ai/msailor/composer_classification/runs/f5eld9f8?workspace=user-msailor)
 
 
+
+### Support
+
+2023-08-31 I started writing this ticket to YCRC help but then abandoned it because I think it's too much detail and not directly relevant:
+
+> Hi,
+> 
+> I'm fairly new to HPC and trying to do some GPU Pytorch training.
+> 
+> 
+> 
+> Yesterday I ran a job with these directives:
+> ```
+> 
+> #SBATCH --partition=gpu
+> 
+> #SBATCH --gpus=4
+> 
+> ```
+> 
+> I then noticed that I was allocated 2 nodes, with 2 gpus each. (The ID of this job is 24988874.) My code was running on one of the nodes, while the other sat idle (which makes sense since I hadn't implemented multi-node training).
+> 
+> 
+> So it seems that, if we want the gpus that we request to be on a single node, we need to explicitly add a `#SBATCH --nodes=1` directive. (This seems to be contrary to https://docs.ycrc.yale.edu/clusters/grace/ which suggests that `--nodes=1` is a default argument for jobs.) When I do this, I typically have to queue for much longer (which makes sense if 

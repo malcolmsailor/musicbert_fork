@@ -2,7 +2,7 @@
 
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
-#SBATCH --gpus=4
+#SBATCH --gpus=2
 #SBATCH --job-name=train_class
 #SBATCH --time=0:10:00
 #SBATCH --mail-type=ALL
