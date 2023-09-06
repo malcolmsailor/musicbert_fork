@@ -119,3 +119,11 @@ Training:
 > 
 > 
 > So it seems that, if we want the gpus that we request to be on a single node, we need to explicitly add a `#SBATCH --nodes=1` directive. (This seems to be contrary to https://docs.ycrc.yale.edu/clusters/grace/ which suggests that `--nodes=1` is a default argument for jobs.) When I do this, I typically have to queue for much longer (which makes sense if 
+
+# Chord tones
+
+2023-09-05: data processing pipeline:
+
+1. use `write_chord_tones_seqs` to write data in `oct` format. E.g., `python -m write_chord_tones_seqs --repr-type oct --data-settings configs/oct_data_settings.yaml --overwrite --src-data-dir ~/tmp/chords/salami_slice/`
+2. use `to_fair_seq.py` script in `write_chord_tones_seqs` package. E.g., `python scripts/to_fair_seq.py --input-dir /Users/malcolm/datasets/chord_tones_seqs/write_chord_tones_seqs/62961b660946b787407ff32030eb61f/0a6eb12f725793e8107a4ecd1696f39/ratios=0.8+0.1+0.1_frac=0.1_seed=42 --output-dir ~/tmp/foo`
+3. binarize, e.g., `bash binarize_chord_tones.sh ~/tmp/foo_raw [NUM WORKERS]`

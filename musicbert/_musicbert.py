@@ -33,12 +33,13 @@ from fairseq.tasks import LegacyFairseqTask, register_task
 from fairseq.tasks.sentence_prediction import SentencePredictionTask
 
 from musicbert.freezable_roberta import FreezableRobertaEncoder
+from musicbert.token_classification import RobertaSequenceTaggingHead
 
 LOGGER = logging.getLogger(__name__)
 
-DISABLE_CP = "disable_cp" in os.environ
-print("disable_cp =", DISABLE_CP)
-LOGGER.info(f"DISABLE_CP = {DISABLE_CP}")
+DISABLE_CP = False
+if DISABLE_CP:
+    raise NotImplementedError
 
 MASK_STRATEGY = (
     os.environ["mask_strategy"].split("+") if "mask_strategy" in os.environ else ["bar"]
@@ -267,14 +268,13 @@ class OctupleMaskTokensDataset(MaskTokensDataset):
 
 
 class OctupleEncoder(TransformerSentenceEncoder):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, upsample: bool = True, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.tpu = False
         embedding_dim = kwargs["embedding_dim"]
-        if not DISABLE_CP:
-            self.downsampling = nn.Sequential(
-                nn.Linear(embedding_dim * 8, embedding_dim)
-            )
+        self.downsampling = nn.Sequential(nn.Linear(embedding_dim * 8, embedding_dim))
+        self.upsample = upsample
+        if upsample:
             self.upsampling = nn.Sequential(nn.Linear(embedding_dim, embedding_dim * 8))
 
     def forward(
@@ -370,7 +370,7 @@ class OctupleEncoder(TransformerSentenceEncoder):
             x, _ = layer(x, self_attn_padding_mask=padding_mask)
             if not last_state_only:
                 inner_states.append(x)
-        if not DISABLE_CP:
+        if self.upsample:
             x = x.transpose(0, 1)
             x = self.upsampling(x).view(x.shape[0], x.shape[1] * ratio, -1)
             x = x.transpose(0, 1)
@@ -384,9 +384,10 @@ class OctupleEncoder(TransformerSentenceEncoder):
 
 
 class MusicBERTEncoder(FreezableRobertaEncoder):
-    def __init__(self, args, dictionary):
+    def __init__(self, args, dictionary, upsample: bool = True):
         super().__init__(args, dictionary)
         self.sentence_encoder = OctupleEncoder(
+            upsample=upsample,
             padding_idx=dictionary.pad(),
             vocab_size=len(dictionary),
             num_encoder_layers=args.encoder_layers,
@@ -414,9 +415,40 @@ class MusicBERTModel(RobertaModel):
         base_architecture(args)  # modifies args in place
         if not hasattr(args, "max_positions"):
             args.max_positions = args.tokens_per_sample
-        encoder = MusicBERTEncoder(args, task.source_dictionary)
+        upsample = getattr(task, "upsample_encoder", True)
+
+        encoder = MusicBERTEncoder(args, task.source_dictionary, upsample=upsample)
         out = cls(args, encoder)  # type:ignore
         return out
+
+    def register_sequence_tagging_head(
+        self, name, num_classes=None, inner_dim=None, **kwargs
+    ):
+        """Register a classification head."""
+        if name in self.classification_heads:
+            prev_num_classes = self.classification_heads[  # type:ignore
+                name
+            ].out_proj.out_features  # type:ignore
+            prev_inner_dim = self.classification_heads[  # type:ignore
+                name
+            ].dense.out_features  # type:ignore
+            if num_classes != prev_num_classes or inner_dim != prev_inner_dim:
+                LOGGER.warning(
+                    're-registering head "{}" with num_classes {} (prev: {}) '
+                    "and inner_dim {} (prev: {})".format(
+                        name, num_classes, prev_num_classes, inner_dim, prev_inner_dim
+                    )
+                )
+        self.classification_heads[name] = RobertaSequenceTaggingHead(  # type:ignore
+            input_dim=self.args.encoder_embed_dim,  # type:ignore
+            inner_dim=inner_dim or self.args.encoder_embed_dim,  # type:ignore
+            num_classes=num_classes,
+            activation_fn=self.args.pooler_activation_fn,  # type:ignore
+            pooler_dropout=self.args.pooler_dropout,  # type:ignore
+            q_noise=self.args.quant_noise_pq,  # type:ignore
+            qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
+            do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
+        )
 
 
 @register_model_architecture("musicbert", "musicbert")
