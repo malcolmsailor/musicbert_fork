@@ -23,5 +23,12 @@ bash /home/ms3682/code/musicbert_fork/train_chord_tones.sh \
 
 set +x
 
-
+# Equivalent command for local development:
+# bash train_chord_tones.sh \
+#     -d /Users/malcolm/output/fairseq/chord_tones_seqs_bin \
+#     -a base \
+#     -W scratch \
+#     -c /Volumes/Reicha/large_checkpoints/musicbert/checkpoint_last_musicbert_base.pt \
+#     -u 50000 \
+#     -w 10000
 
