@@ -274,8 +274,11 @@ class OctupleEncoder(TransformerSentenceEncoder):
         embedding_dim = kwargs["embedding_dim"]
         self.downsampling = nn.Sequential(nn.Linear(embedding_dim * 8, embedding_dim))
         self.upsample = upsample
-        if upsample:
-            self.upsampling = nn.Sequential(nn.Linear(embedding_dim, embedding_dim * 8))
+        # (Malcolm 2023-09-07) if `self.upsample` is False, then we shouldn't use
+        #   self.upsampling, but we nevertheless create it so that the model will
+        #   match the pretrained checkpoints. (We could hack `fairseq` so that
+        #   strict=False; there doesn't seem to be a cmd line arg for that.)
+        self.upsampling = nn.Sequential(nn.Linear(embedding_dim, embedding_dim * 8))
 
     def forward(
         self,

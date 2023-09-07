@@ -275,9 +275,9 @@ class SequenceTaggingTask(FairseqTask):
             filename (str): the filename
         """
         dictionary = Dictionary.load(filename)
-        # (Malcolm 2023-09-05) I don't think we need a mask symbol for
-        #   these tasks
-        # dictionary.add_symbol("<mask>")
+        # (Malcolm 2023-09-05) We need the <mask> symbol not because we use it but
+        #   so that the dictionary sizes match with the pretrained checkpoints.
+        dictionary.add_symbol("<mask>")
         return dictionary
 
     @classmethod

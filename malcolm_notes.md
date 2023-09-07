@@ -140,3 +140,5 @@ I suspect it has to do with the task. The dictionaries are the same, but an extr
         size mismatch for encoder.lm_head.weight: copying a param with shape torch.Size([1237, 768]) from checkpoint, the shape in current model is torch.Size([1236, 768]).
         size mismatch for encoder.lm_head.bias: copying a param with shape torch.Size([1237]) from checkpoint, the shape in current model is torch.Size([1236]).
 ```
+
+09:40 This was fixed by including a `<mask>` token so the vocabulary matches training.
