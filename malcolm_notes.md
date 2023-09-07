@@ -127,3 +127,16 @@ Training:
 1. use `write_chord_tones_seqs` to write data in `oct` format. E.g., `python -m write_chord_tones_seqs --repr-type oct --data-settings configs/oct_data_settings.yaml --overwrite --src-data-dir ~/tmp/chords/salami_slice/`
 2. use `to_fair_seq.py` script in `write_chord_tones_seqs` package. E.g., `python scripts/to_fair_seq.py --input-dir /Users/malcolm/datasets/chord_tones_seqs/write_chord_tones_seqs/62961b660946b787407ff32030eb61f/0a6eb12f725793e8107a4ecd1696f39/ratios=0.8+0.1+0.1_frac=0.1_seed=42 --output-dir ~/tmp/foo`
 3. binarize, e.g., `bash binarize_chord_tones.sh ~/tmp/foo_raw [NUM WORKERS]`
+
+# 2023-09-07
+
+
+Getting the following errors when trying to do chord tone token classification with musicbert. Unexpected keys are OK (we are not upsampling).
+
+I suspect it has to do with the task. The dictionaries are the same, but an extra token is getting added in the sentence-classification task to make the vocabulary size 1237 rather than 1236.
+```
+        Unexpected key(s) in state_dict: "encoder.sentence_encoder.upsampling.0.weight", "encoder.sentence_encoder.upsampling.0.bias". 
+        size mismatch for encoder.sentence_encoder.embed_tokens.weight: copying a param with shape torch.Size([1237, 768]) from checkpoint, the shape in current model is torch.Size([1236, 768]).
+        size mismatch for encoder.lm_head.weight: copying a param with shape torch.Size([1237, 768]) from checkpoint, the shape in current model is torch.Size([1236, 768]).
+        size mismatch for encoder.lm_head.bias: copying a param with shape torch.Size([1237]) from checkpoint, the shape in current model is torch.Size([1236]).
+```
