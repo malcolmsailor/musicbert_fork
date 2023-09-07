@@ -64,7 +64,7 @@ Trying to run `bash train_genre.sh ~/project/datasets/topmagd 13 0 ~/project/che
             "WANDB_NAME", os.path.basename(cfg.checkpoint.save_dir)
         ),
 ```
-    This is kind of annoying as we don't take advantage of the mnemonic random naming of runs provided by wandb. Perhaps if WANDB_NAME is "" we will get a random name?
+    This is kind of annoying as we don't take advantage of the mnemonic random naming of runs provided by wandb. Perhaps if WANDB_NAME is "" we will get a random name? (That seems unlikely.)
 
 - Wandb says 1 GPU even when there is more than 1 GPU. This seems to be incorrect---nvidia-smi on the running job lists multiple gpus in use.
 
