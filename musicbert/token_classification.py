@@ -315,6 +315,7 @@ class SequenceTaggingTask(FairseqTask):
 
     def print_examples(
         self,
+        epoch,
         model: nn.Module,
         split: Literal["train", "valid"],
         indices: Sequence[int],
@@ -334,7 +335,6 @@ class SequenceTaggingTask(FairseqTask):
         preds = logits.argmax(dim=-1)
         total_correct = 0
         total = 0
-        print(f"{split} examples:".upper())
         for i, (pred, target) in enumerate(zip(preds, batch["target"])):
             # Ignore padding/bos/eos
             valid_mask = target >= 0
@@ -349,8 +349,8 @@ class SequenceTaggingTask(FairseqTask):
 
             # We need to adjust for the specials at the beginning
             #   of the dictionary
-            pred += self.label_dictionary.nspecial
-            target += self.label_dictionary.nspecial
+            # pred += self.label_dictionary.nspecial
+            # target += self.label_dictionary.nspecial
 
             target_tokens = self.label_dictionary.string(target)
             pred_tokens = self.label_dictionary.string(pred)
@@ -363,16 +363,16 @@ class SequenceTaggingTask(FairseqTask):
             target_tokens = " ".join(target_tokens)
             pred_tokens = " ".join(pred_tokens)
 
-            print(f"{split} target     {i + 1}: ", target_tokens)
-            print(f"{split} prediction {i + 1}: ", pred_tokens)
+            LOGGER.info(f"Epoch {epoch} {split} target     {i + 1}: {target_tokens}")
+            LOGGER.info(f"Epoch {epoch} {split} prediction {i + 1}: {pred_tokens}")
 
         model.train(model_state)
 
     def begin_valid_epoch(self, epoch, model):
         """As a sanity check, print out example outputs for training and validation sets."""
 
-        self.print_examples(model, "train", [0, 1, 2, 3])
-        self.print_examples(model, "valid", [0, 1, 2, 3])
+        self.print_examples(epoch, model, "train", [0, 1, 2, 3])
+        self.print_examples(epoch, model, "valid", [0, 1, 2, 3])
 
     def load_dataset(self, split, combine=False, **kwargs):
         """Load a given dataset split (e.g., train, valid, test)."""
@@ -398,22 +398,30 @@ class SequenceTaggingTask(FairseqTask):
 
         label_dataset = make_dataset("label", self.label_dictionary)
 
+        # (Malcolm 2023-09-08) The code that I based this off of includes the
+        #   following commented out lines so that we only predict items in the
+        #   target vocabulary and not specials. However that doesn't seem necessary
+        #   and there seem to be some weird bugs going on so I'm disabling that for
+        #   now.
+
         # OffsetTokensDataset offsets tokens to get the targets to the
         # correct range (0,1,2,...)
-        label_dataset = OffsetTokensDataset(
-            label_dataset,
-            offset=-self.label_dictionary.nspecial,
-        )
+        # label_dataset = OffsetTokensDataset(
+        #     label_dataset,
+        #     offset=-self.label_dictionary.nspecial,
+        # )
         # ReplaceDataset replaces specials (bos, eos, and existing padding used when some
         # tokens should not be predicted) with -1
-        label_dataset = ReplaceDataset(
-            label_dataset,
-            replace_map={i: -1 for i in range(-self.label_dictionary.nspecial, 0)},
-            offsets=np.zeros(len(label_dataset), dtype=int),
-        )
+        # label_dataset = ReplaceDataset(
+        #     label_dataset,
+        #     replace_map={i: -1 for i in range(-self.label_dictionary.nspecial, 0)},
+        #     offsets=np.zeros(len(label_dataset), dtype=int),
+        # )
         # RightPadDataset uses -1 as padding, will be used to mask out padding
         # when calculating loss
-        label_dataset = RightPadDataset(label_dataset, pad_idx=-1)
+        label_dataset = RightPadDataset(
+            label_dataset, pad_idx=self.label_dictionary.pad()
+        )
 
         dataset = {
             "id": IdDataset(),
@@ -460,7 +468,7 @@ class SequenceTaggingTask(FairseqTask):
 
         model.register_sequence_tagging_head(
             getattr(args, "classification_head_name", "sequence_tagging_head"),
-            num_classes=self.args.num_classes,  # type:ignore
+            num_classes=self.args.num_classes + self.label_dictionary.nspecial,
             sequence_tagging=True,
         )
 
