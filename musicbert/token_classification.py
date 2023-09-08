@@ -327,11 +327,19 @@ class SequenceTaggingTask(FairseqTask):
         dataset = self.datasets[split]
         samples = [dataset[i] for i in indices]
         batch = dataset.collater(samples)
+        
+        # Hack to get the device of the model
+        device =  next(model.parameters()).device
+
+        # Move input to model device
+        net_input = {k: v.to(device) for k, v in batch["net_input"].items()}
+
         logits, _ = model(
-            **batch["net_input"],
+            **net_input,
             features_only=True,
             classification_head_name="sequence_tagging_head",
         )
+        logits = logits.to("cpu")
         preds = logits.argmax(dim=-1)
         total_correct = 0
         total = 0
@@ -354,6 +362,7 @@ class SequenceTaggingTask(FairseqTask):
 
             target_tokens = self.label_dictionary.string(target)
             pred_tokens = self.label_dictionary.string(pred)
+            breakpoint()
             target_tokens = [
                 f"{x[:token_length]:<{token_length}}" for x in target_tokens.split()
             ]
