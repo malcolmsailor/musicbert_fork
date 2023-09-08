@@ -60,7 +60,7 @@ while getopts "d:r:a:u:w:W:c:l:f" opt; do
 done
 
 
-NUM_CLASSES=$( wc -l < "${DATA_BIN_DIR}"/label/dict.txt )
+NUM_CLASSES=$(cat "${DATA_BIN_DIR}"/label/dict.txt | grep -v -E "madeupword[0-9]{4}" | wc -l)
 
 if [ -z "$DATA_BIN_DIR" ] || [ -z "$USER_DIR" ] || [ -z "$WANDB_PROJECT" ] || [ -z "$NN_ARCH" ]
 then

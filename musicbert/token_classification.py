@@ -6,6 +6,7 @@ https://github.com/facebookresearch/fairseq/pull/1709/files
 import logging
 import math
 import os
+from typing import Literal, Sequence
 
 import numpy as np
 import torch
@@ -241,20 +242,15 @@ class SequenceTaggingTask(FairseqTask):
         # (Malcolm 2023-09-05) not sure why we would want to not shuffle
         parser.add_argument("--no-shuffle", action="store_true", default=False)
 
+        # (Malcolm 2023-09-08) more args; adding these for the eval script but I
+        #   suspect there is a better way
+        # (Malcolm 2023-09-08) Actually this causes a "conflicting option string"
+        #   exception
+        # parser.add_argument(
+        #     "--max-positions", type=int, help="number of positional embeddings to learn"
+        # )
+
     def __init__(self, args, data_dictionary, label_dictionary):
-        super().__init__(args)
-        self.dictionary = data_dictionary
-        self._label_dictionary = label_dictionary
-        if not hasattr(args, "max_positions"):
-            self._max_positions = (
-                args.max_source_positions,
-                args.max_target_positions,
-            )
-        else:
-            self._max_positions = args.max_positions
-        args.tokens_per_sample = self._max_positions  # tuple[int, int] ?
-        # The code from the PR seems to assume that the task has an `args attribute`
-        self.args = args
         if args.msdebug:
             import pdb
             import sys
@@ -267,6 +263,22 @@ class SequenceTaggingTask(FairseqTask):
                 pdb.post_mortem(exc_traceback)
 
             sys.excepthook = custom_excepthook
+        super().__init__(args)
+        self.dictionary = data_dictionary
+        self._label_dictionary = label_dictionary
+        if not hasattr(args, "max_positions"):
+            # TODO: (Malcolm 2023-09-08) this will raise an attribute error
+            # We just provide max positions as an arg
+            raise NotImplementedError("Provide '--max-positions'")
+            self._max_positions = (
+                args.max_source_positions,
+                args.max_target_positions,
+            )
+        else:
+            self._max_positions = args.max_positions
+        args.tokens_per_sample = self._max_positions  # tuple[int, int] ?
+        # The code from the PR seems to assume that the task has an `args attribute`
+        self.args = args
 
     @classmethod
     def load_dictionary(cls, args, filename, source=True):
@@ -300,6 +312,67 @@ class SequenceTaggingTask(FairseqTask):
         )
         LOGGER.info("[label] dictionary: {} types".format(len(label_dict)))
         return SequenceTaggingTask(args, data_dict, label_dict)  # type:ignore
+
+    def print_examples(
+        self,
+        model: nn.Module,
+        split: Literal["train", "valid"],
+        indices: Sequence[int],
+        max_tokens_to_print=16,
+        token_length=1,
+    ):
+        model_state = model.training
+        model.eval()
+        dataset = self.datasets[split]
+        samples = [dataset[i] for i in indices]
+        batch = dataset.collater(samples)
+        logits, _ = model(
+            **batch["net_input"],
+            features_only=True,
+            classification_head_name="sequence_tagging_head",
+        )
+        preds = logits.argmax(dim=-1)
+        total_correct = 0
+        total = 0
+        print(f"{split} examples:".upper())
+        for i, (pred, target) in enumerate(zip(preds, batch["target"])):
+            # Ignore padding/bos/eos
+            valid_mask = target >= 0
+            pred = pred[valid_mask]
+            target = target[valid_mask]
+            total += valid_mask.sum()
+            total_correct += (pred == target).sum()
+
+            #
+            pred = pred[:max_tokens_to_print]
+            target = target[:max_tokens_to_print]
+
+            # We need to adjust for the specials at the beginning
+            #   of the dictionary
+            pred += self.label_dictionary.nspecial
+            target += self.label_dictionary.nspecial
+
+            target_tokens = self.label_dictionary.string(target)
+            pred_tokens = self.label_dictionary.string(pred)
+            target_tokens = [
+                f"{x[:token_length]:<{token_length}}" for x in target_tokens.split()
+            ]
+            pred_tokens = [
+                f"{x[:token_length]:<{token_length}}" for x in pred_tokens.split()
+            ]
+            target_tokens = " ".join(target_tokens)
+            pred_tokens = " ".join(pred_tokens)
+
+            print(f"{split} target     {i + 1}: ", target_tokens)
+            print(f"{split} prediction {i + 1}: ", pred_tokens)
+
+        model.train(model_state)
+
+    def begin_valid_epoch(self, epoch, model):
+        """As a sanity check, print out example outputs for training and validation sets."""
+
+        self.print_examples(model, "train", [0, 1, 2, 3])
+        self.print_examples(model, "valid", [0, 1, 2, 3])
 
     def load_dataset(self, split, combine=False, **kwargs):
         """Load a given dataset split (e.g., train, valid, test)."""

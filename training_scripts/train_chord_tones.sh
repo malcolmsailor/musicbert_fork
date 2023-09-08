@@ -36,7 +36,7 @@ UPDATE_FREQ=$((${BATCH_SIZE} / ${MAX_SENTENCES} / ${UPDATE_FREQ_DENOM}))
 LOG_INTERVAL=50
 
 SCRIPT_DIR=$(dirname "$0")
-USER_DIR=${SCRIPT_DIR}/musicbert
+USER_DIR=${SCRIPT_DIR}/../musicbert
 
 DEBUG_FLAG=""
 
@@ -74,7 +74,7 @@ else
     RESTORE_FLAG="--restore-file ${RESTORE_CHECKPOINT}"
 fi
 
-NUM_CLASSES=$( wc -l < "${DATA_BIN_DIR}"/label/dict.txt )
+NUM_CLASSES=$(cat "${DATA_BIN_DIR}"/label/dict.txt | grep -v -E "madeupword[0-9]{4}" | wc -l)
 
 FAIRSEQ_ARGS=(
     ${DATA_BIN_DIR}

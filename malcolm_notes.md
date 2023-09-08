@@ -142,3 +142,29 @@ I suspect it has to do with the task. The dictionaries are the same, but an extr
 ```
 
 09:40 This was fixed by including a `<mask>` token so the vocabulary matches training.
+
+## 11:46
+
+I launched two single-GPU jobs and they both ended up on the same node. Moreover, when I logged in to that node, it appeared that GPU usage was at 0. I then killed one of the jobs and GPU usage went back up.
+
+## 11:52
+
+My new hugging face run seems to be doing a lot *worse* than the previous run so far. It has more data but maybe the data is corrupt in some way? (Or maybe the last run had more GPUs so comparing steps is misleading? -> No, at least according to WANDB logs they have both 1 GPU. I should verify that WANDB logs are correct though.)
+
+Git diff suggests there are no changes except for the data:
+- Local folder for original dataset: /Users/malcolm/google_drive/colab_datasets/chord_tones_seqs/write_chord_tones_seqs/bbcf4118f73846be67f71f0e7660d74/04fbb74a2712ddbcd514b43d710c17f/ratios=0.8+0.1+0.1_frac=1.0_seed=42
+- Local folder for newer dataset: /Users/malcolm/datasets/chord_tones_seqs/write_chord_tones_seqs/62961b660946b787407ff32030eb61f/94eb4c11beecc7f5fce53023ed360ea/ratios=0.8+0.1+0.1_frac=1.0_seed=42
+
+Differences include:
+- older dataset has weights among events
+- different sequence length
+
+Some big differences in ChordTonesDataSettings.json: 
+- old:
+    "hop": 8,
+    "window_len": 128,
+- new:
+    "hop": 250,
+    "window_len": 1000,
+Also:
+- keep_onsets_together, keep_releases_together, and token_classification arguments have been removed. I assume this is because they are obsolete but I should double-check this assumption.
