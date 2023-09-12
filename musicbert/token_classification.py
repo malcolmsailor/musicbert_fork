@@ -7,7 +7,7 @@ import logging
 import math
 import os
 from typing import Literal, Sequence
-
+import warnings
 import numpy as np
 import sklearn.metrics  # type:ignore
 import torch
@@ -221,11 +221,13 @@ class SequenceTaggingCriterion(FairseqCriterion):
             balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
             metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
 
-            no_specials_mask = y_true >= 4  # type:ignore
+            n_special = 4
+            no_specials_mask = y_true >= n_special  # type:ignore
             confused = sklearn.metrics.confusion_matrix(
-                y_true[no_specials_mask], y_pred[no_specials_mask]
+                y_true[no_specials_mask] - n_special, y_pred[no_specials_mask] - n_special
             )
             with np.errstate(divide="ignore", invalid="ignore"):
+                warnings.filterwarnings("ignore", message="y_pred contains classes not in y_true", category=UserWarning)
                 precision_per_class = np.nan_to_num(
                     confused.diagonal() / confused.sum(axis=0)
                 )
@@ -236,9 +238,15 @@ class SequenceTaggingCriterion(FairseqCriterion):
                     (2 * precision_per_class * recall_per_class)
                     / (precision_per_class + recall_per_class)
                 )
+            
+            # TODO: (Malcolm 2023-09-12) At some point don't hardcode labels
             labels = ["yes", "no"]
-            for class_i in range(len(precision_per_class)):
-                label = labels[class_i]
+
+
+            for label_i, label, in enumerate(labels):
+                # specials may or may not be included in the metric arrays, but we
+                #   don't want to log them. So instead we do as follows:
+                class_i = len(precision_per_class) - len(labels) + label_i
                 metrics.log_scalar(f"precision_{label}", precision_per_class[class_i])
                 metrics.log_scalar(f"recall_{label}", recall_per_class[class_i])
                 metrics.log_scalar(f"f1_{label}", f1_per_class[class_i])
