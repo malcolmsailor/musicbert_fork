@@ -9,6 +9,7 @@ import os
 from typing import Literal, Sequence
 
 import numpy as np
+import sklearn.metrics  # type:ignore
 import torch
 import torch.nn.functional as F
 from fairseq import metrics, utils
@@ -155,6 +156,8 @@ class SequenceTaggingCriterion(FairseqCriterion):
             "nsentences": nsentences,
             "sample_size": sample_size,
             "ncorrect": utils.item((masked_preds == masked_targets).sum()),
+            "y_true": masked_targets.detach().cpu().numpy(),
+            "y_pred": masked_preds.detach().cpu().numpy(),
         }
 
         return loss, sample_size, logging_output
@@ -191,6 +194,28 @@ class SequenceTaggingCriterion(FairseqCriterion):
             metrics.log_scalar(
                 "accuracy", 100.0 * ncorrect / sample_size, nsentences, round=1
             )
+        if len(logging_outputs) > 0 and "y_pred" in logging_outputs[0]:
+            y_pred = np.concatenate(
+                tuple(log.get("y_pred") for log in logging_outputs if "y_pred" in log)
+            )
+            y_true = np.concatenate(
+                tuple(log.get("y_true") for log in logging_outputs if "y_true" in log)
+            )
+            for average in ["micro", "weighted"]:
+                (
+                    precision,
+                    recall,
+                    f1,
+                    support,
+                ) = sklearn.metrics.precision_recall_fscore_support(
+                    y_true, y_pred, average=average, zero_division=0.0  # type:ignore
+                )
+                metrics.log_scalar(f"precision_{average}", precision)  # type:ignore
+                metrics.log_scalar(f"recall_{average}", recall)  # type:ignore
+                metrics.log_scalar(f"f1_{average}", f1)  # type:ignore
+
+            balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
+            metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
 
     @staticmethod
     def logging_outputs_can_be_summed() -> bool:
