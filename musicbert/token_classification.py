@@ -314,6 +314,7 @@ class SequenceTaggingTask(FairseqTask):
         parser.add_argument("--msdebug", action="store_true")
         # (Malcolm 2023-09-05) not sure why we would want to not shuffle
         parser.add_argument("--no-shuffle", action="store_true", default=False)
+        parser.add_argument("--freeze-layers", type=int, default=-1)
 
         # (Malcolm 2023-09-08) more args; adding these for the eval script but I
         #   suspect there is a better way
@@ -553,6 +554,28 @@ class SequenceTaggingTask(FairseqTask):
 
         model = models.build_model(args, self)
 
+        if args.freeze_layers > 0:
+            # What we *don't* want to freeze:
+            # 1. the last n - freeze_layers encoder layers
+            # 2. the classification head
+            n_layers = len(model.encoder.sentence_encoder.layers)
+            assert n_layers >= args.freeze_layers
+
+            for parameter in model.parameters():
+                parameter.requires_grad = False
+
+            for layer_i, layer in enumerate(model.encoder.sentence_encoder.layers):
+                if layer_i < args.freeze_layers:
+                    continue
+                for parameter in layer.parameters():
+                    parameter.requires_grad = True
+
+            if model.encoder.sentence_encoder.upsample:
+                for parameter in model.encoder.sentence_encoder.upsampling.parameters():
+                    parameter.requires_grad = True
+
+        # We register the sequence tagging head after any freezing so that it won't
+        #   be frozen
         model.register_sequence_tagging_head(
             getattr(args, "classification_head_name", "sequence_tagging_head"),
             num_classes=self.args.num_classes + self.label_dictionary.nspecial,
