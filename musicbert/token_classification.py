@@ -6,8 +6,9 @@ https://github.com/facebookresearch/fairseq/pull/1709/files
 import logging
 import math
 import os
-from typing import Literal, Sequence
 import warnings
+from typing import Literal, Sequence
+
 import numpy as np
 import sklearn.metrics  # type:ignore
 import torch
@@ -224,10 +225,15 @@ class SequenceTaggingCriterion(FairseqCriterion):
             n_special = 4
             no_specials_mask = y_true >= n_special  # type:ignore
             confused = sklearn.metrics.confusion_matrix(
-                y_true[no_specials_mask] - n_special, y_pred[no_specials_mask] - n_special
+                y_true[no_specials_mask] - n_special,
+                y_pred[no_specials_mask] - n_special,
             )
             with np.errstate(divide="ignore", invalid="ignore"):
-                warnings.filterwarnings("ignore", message="y_pred contains classes not in y_true", category=UserWarning)
+                warnings.filterwarnings(
+                    "ignore",
+                    message="y_pred contains classes not in y_true",
+                    category=UserWarning,
+                )
                 precision_per_class = np.nan_to_num(
                     confused.diagonal() / confused.sum(axis=0)
                 )
@@ -238,12 +244,14 @@ class SequenceTaggingCriterion(FairseqCriterion):
                     (2 * precision_per_class * recall_per_class)
                     / (precision_per_class + recall_per_class)
                 )
-            
+
             # TODO: (Malcolm 2023-09-12) At some point don't hardcode labels
             labels = ["yes", "no"]
 
-
-            for label_i, label, in enumerate(labels):
+            for (
+                label_i,
+                label,
+            ) in enumerate(labels):
                 # specials may or may not be included in the metric arrays, but we
                 #   don't want to log them. So instead we do as follows:
                 class_i = len(precision_per_class) - len(labels) + label_i
@@ -555,6 +563,7 @@ class SequenceTaggingTask(FairseqTask):
         model = models.build_model(args, self)
 
         if args.freeze_layers > 0:
+            LOGGER.info(f"Freezing {args.freeze_layers=} layers")
             # What we *don't* want to freeze:
             # 1. the last n - freeze_layers encoder layers
             # 2. the classification head
