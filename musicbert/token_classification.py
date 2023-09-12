@@ -158,6 +158,10 @@ class SequenceTaggingCriterion(FairseqCriterion):
             "ncorrect": utils.item((masked_preds == masked_targets).sum()),
             "y_true": masked_targets.detach().cpu().numpy(),
             "y_pred": masked_preds.detach().cpu().numpy(),
+            # because `reduce_metrics` is a static method we need to
+            #   include the following in the logging output. Although I wonder
+            #   what would happen if we just removed `@staticmethod`
+            "nspecial": self.task.label_dictionary.nspecial,
         }
 
         return loss, sample_size, logging_output
@@ -216,6 +220,28 @@ class SequenceTaggingCriterion(FairseqCriterion):
 
             balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
             metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
+
+            no_specials_mask = y_true >= 4  # type:ignore
+            confused = sklearn.metrics.confusion_matrix(
+                y_true[no_specials_mask], y_pred[no_specials_mask]
+            )
+            with np.errstate(divide="ignore", invalid="ignore"):
+                precision_per_class = np.nan_to_num(
+                    confused.diagonal() / confused.sum(axis=0)
+                )
+                recall_per_class = np.nan_to_num(
+                    confused.diagonal() / confused.sum(axis=1)
+                )
+                f1_per_class = np.nan_to_num(
+                    (2 * precision_per_class * recall_per_class)
+                    / (precision_per_class + recall_per_class)
+                )
+            labels = ["yes", "no"]
+            for class_i in range(len(precision_per_class)):
+                label = labels[class_i]
+                metrics.log_scalar(f"precision_{label}", precision_per_class[class_i])
+                metrics.log_scalar(f"recall_{label}", recall_per_class[class_i])
+                metrics.log_scalar(f"f1_{label}", f1_per_class[class_i])
 
     @staticmethod
     def logging_outputs_can_be_summed() -> bool:
@@ -304,6 +330,11 @@ class SequenceTaggingTask(FairseqTask):
             sys.excepthook = custom_excepthook
         super().__init__(args)
         self.dictionary = data_dictionary
+        # (Malcolm 2023-09-12) for printing label names to work above these
+        #   assertions need to be correct. If we remove the staticmethod decorator
+        #   we could probably get rid of this
+        assert label_dictionary[4] == "yes"
+        assert label_dictionary[5] == "no"
         self._label_dictionary = label_dictionary
         if not hasattr(args, "max_positions"):
             # TODO: (Malcolm 2023-09-08) this will raise an attribute error
