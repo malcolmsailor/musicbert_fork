@@ -34,6 +34,8 @@ from torch import nn
 
 LOGGER = logging.getLogger(__name__)
 
+PAD_IDX = 1
+
 
 class AssertSameLengthDataset(FairseqDataset):
     def __init__(self, first, second, first_to_second_ratio: int = 1):
@@ -101,6 +103,8 @@ class SequenceTaggingCriterion(FairseqCriterion):
     def __init__(self, task, classification_head_name):
         super().__init__(task)
         self.classification_head_name = classification_head_name
+        self.pad_idx = task.label_dictionary.pad()
+        self.compound_token_ratio = self.task.args.compound_token_ratio
 
     @staticmethod
     def add_args(parser):
@@ -128,24 +132,27 @@ class SequenceTaggingCriterion(FairseqCriterion):
             classification_head_name=self.classification_head_name,
         )
         targets = model.get_targets(sample, [logits]).view(-1)
-        sample_size = sample["ntokens"] - sample["target"].size(
-            0
-        )  # number of tokens without eos
+        adjusted_ntokens = sample["ntokens"] // self.compound_token_ratio
+        nsentences = sample["target"].size(0)
+        sample_size = adjusted_ntokens - nsentences  # number of tokens without eos
 
         logits = logits.view(-1, logits.size(-1))
         loss = F.nll_loss(
             F.log_softmax(logits, dim=-1, dtype=torch.float32),
             targets,
-            ignore_index=-1,
+            ignore_index=self.pad_idx,
             reduction="sum",
         )
 
-        masked_preds = logits[targets != -1].argmax(dim=1)
-        masked_targets = targets[targets != -1]
+        # To get the same behavior as the original implementation we should ignore
+        #   all specials, not just pad. Not sure if we want to do this.
+
+        masked_preds = logits[targets != self.pad_idx].argmax(dim=1)
+        masked_targets = targets[targets != self.pad_idx]
         logging_output = {
             "loss": loss.data,
-            "ntokens": sample["ntokens"],
-            "nsentences": sample["target"].size(0),
+            "ntokens": adjusted_ntokens,
+            "nsentences": nsentences,
             "sample_size": sample_size,
             "ncorrect": utils.item((masked_preds == masked_targets).sum()),
         }
@@ -164,9 +171,16 @@ class SequenceTaggingCriterion(FairseqCriterion):
             sum(log.get("sample_size", 0) for log in logging_outputs)
         )
 
+        # TODO: (Malcolm 2023-09-11) A few things I don't understand here:
+        #   1. why divide loss by log of 2?
+        #   2. why is "loss" divided by sample_size and "nll_loss"  is divided by
+        #       ntokens?
+        #           Note that ntokens should be the number of tokens including <eos>
+        #               and sample_size should be the number of tokens excluding <eos>
         metrics.log_scalar(
             "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
+        # sample_size should be the number of tokens w/o the
         if sample_size != ntokens:
             metrics.log_scalar(
                 "nll_loss", loss_sum / ntokens / math.log(2), ntokens, round=3
@@ -327,9 +341,9 @@ class SequenceTaggingTask(FairseqTask):
         dataset = self.datasets[split]
         samples = [dataset[i] for i in indices]
         batch = dataset.collater(samples)
-        
+
         # Hack to get the device of the model
-        device =  next(model.parameters()).device
+        device = next(model.parameters()).device
 
         # Move input to model device
         net_input = {k: v.to(device) for k, v in batch["net_input"].items()}
@@ -362,7 +376,6 @@ class SequenceTaggingTask(FairseqTask):
 
             target_tokens = self.label_dictionary.string(target)
             pred_tokens = self.label_dictionary.string(pred)
-            breakpoint()
             target_tokens = [
                 f"{x[:token_length]:<{token_length}}" for x in target_tokens.split()
             ]
@@ -431,6 +444,7 @@ class SequenceTaggingTask(FairseqTask):
         label_dataset = RightPadDataset(
             label_dataset, pad_idx=self.label_dictionary.pad()
         )
+        assert self.label_dictionary.pad() == self.source_dictionary.pad() == PAD_IDX
 
         dataset = {
             "id": IdDataset(),

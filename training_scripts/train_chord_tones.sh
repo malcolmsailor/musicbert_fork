@@ -9,7 +9,9 @@ fi
 TOTAL_UPDATES=125000
 WARMUP_UPDATES=25000
 
-PEAK_LR=0.0005 # Borrowed from musicbert
+# TODO: (Malcolm 2023-09-11) restore
+# PEAK_LR=0.0005 # Borrowed from musicbert
+PEAK_LR=0.01
 
 # NB in musicbert scripts, BATCH_SIZE is only used in the UPDATE_FREQ calculation below;
 #   the actual batch size to fairseq-train is set by MAX_SENTENCES arg
@@ -40,7 +42,7 @@ USER_DIR=${SCRIPT_DIR}/../musicbert
 
 DEBUG_FLAG=""
 
-while getopts "d:u:a:w:W:c:l:D" opt; do
+while getopts "d:u:a:w:W:c:l:Dh" opt; do
     case $opt in
         d) DATA_BIN_DIR="$OPTARG" ;;
         a) NN_ARCH=musicbert_"$OPTARG" ;;
@@ -50,7 +52,7 @@ while getopts "d:u:a:w:W:c:l:D" opt; do
         c) RESTORE_CHECKPOINT="$OPTARG" ;;
         l) LOG_INTERVAL="$OPTARG" ;;
         D) DEBUG_FLAG="--msdebug" ;;
-        \?) echo "Usage: $(basename "$0") \
+        h) echo "Usage: $(basename "$0") \
             -d data_dir \
             -W wandb project \
             -a architecture \

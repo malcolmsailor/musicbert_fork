@@ -126,7 +126,7 @@ Training:
 
 1. use `write_chord_tones_seqs` to write data in `oct` format. E.g., `python -m write_chord_tones_seqs --repr-type oct --data-settings configs/oct_data_settings.yaml --overwrite --src-data-dir ~/tmp/chords/salami_slice/`
 2. use `to_fair_seq.py` script in `write_chord_tones_seqs` package. E.g., `python scripts/to_fair_seq.py --input-dir /Users/malcolm/datasets/chord_tones_seqs/write_chord_tones_seqs/62961b660946b787407ff32030eb61f/0a6eb12f725793e8107a4ecd1696f39/ratios=0.8+0.1+0.1_frac=0.1_seed=42 --output-dir ~/tmp/foo`
-3. binarize, e.g., `bash binarize_chord_tones.sh ~/tmp/foo_raw [NUM WORKERS]`
+3. binarize, e.g., `bash binarize_scripts/binarize_chord_tones.sh ~/tmp/foo_raw [NUM WORKERS]`
 
 # 2023-09-07
 
@@ -168,3 +168,8 @@ Some big differences in ChordTonesDataSettings.json:
     "window_len": 1000,
 Also:
 - keep_onsets_together, keep_releases_together, and token_classification arguments have been removed. I assume this is because they are obsolete but I should double-check this assumption.
+
+# 2023-09-11
+
+Why are some input tokens replaced by "<unk>"?
+> 2023-09-11 09:51:46 | INFO | fairseq_cli.preprocess | [None] /Users/malcolm/tmp/dummy_output1_raw/midi_train.txt: 8918 sents, 46377648 tokens, 2.4% replaced by <unk>

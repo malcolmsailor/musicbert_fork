@@ -45,18 +45,15 @@ MASK_STRATEGY = (
     os.environ["mask_strategy"].split("+") if "mask_strategy" in os.environ else ["bar"]
 )
 assert all(item in ["element", "compound", "bar"] for item in MASK_STRATEGY)
-print("mask_strategy =", MASK_STRATEGY)
-LOGGER.info(f"MASK_STRATEGY = {MASK_STRATEGY}")
+# LOGGER.info(f"MASK_STRATEGY = {MASK_STRATEGY}")
 
 
 CONVERT_ENCODING = (
     os.environ["convert_encoding"] if "convert_encoding" in os.environ else "OCTMIDI"
 )
-print("convert_encoding =", CONVERT_ENCODING)
-LOGGER.info(f"CONVERT_ENCODING = {CONVERT_ENCODING}")
+# LOGGER.info(f"CONVERT_ENCODING = {CONVERT_ENCODING}")
 
 CROP_LENGTH = int(os.environ["crop_length"]) if "crop_length" in os.environ else None
-print("crop_length =", CROP_LENGTH)  # of compound tokens
 LOGGER.info(f"CROP_LENGTH = {CROP_LENGTH}")  # of compound tokens
 
 MAX_BARS = 256
