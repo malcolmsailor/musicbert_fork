@@ -33,7 +33,7 @@ WARMUP_UPDATES = 25000
 
 # TODO: (Malcolm 2023-09-11) restore
 # PEAK_LR=0.0005 # Borrowed from musicbert
-PEAK_LR = 0.01
+PEAK_LR = 0.001
 
 # NB in musicbert scripts, BATCH_SIZE is only used in the UPDATE_FREQ calculation below;
 #   the actual batch size to fairseq-train is set by MAX_SENTENCES arg
