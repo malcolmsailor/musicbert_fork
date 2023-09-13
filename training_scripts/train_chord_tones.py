@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 
 def shell(cmd):
@@ -30,8 +31,12 @@ else:
 TOTAL_UPDATES = 125000
 WARMUP_UPDATES = 25000
 
+# TODO: (Malcolm 2023-09-11) restore
+# PEAK_LR=0.0005 # Borrowed from musicbert
 PEAK_LR = 0.01
 
+# NB in musicbert scripts, BATCH_SIZE is only used in the UPDATE_FREQ calculation below;
+#   the actual batch size to fairseq-train is set by MAX_SENTENCES arg
 BATCH_SIZE = 64
 MAX_SENTENCES = 4
 
@@ -53,8 +58,28 @@ parser.add_argument("--architecture", "-a", required=True)
 parser.add_argument("--wandb-project", "-W", required=True)
 parser.add_argument("--total-updates", "-u", type=int, default=TOTAL_UPDATES)
 parser.add_argument("--warmup-updates", "-w", type=int, default=WARMUP_UPDATES)
+parser.add_argument("--lr", type=float, default=PEAK_LR)
 parser.add_argument("--checkpoint", "-c")
 args, args_to_pass_on = parser.parse_known_args()
+
+NEW_CHECKPOINTS_DIR = os.environ["NEW_CHECKPOINTS_DIR"]
+
+SLURM_ID = os.getenv("SLURM_JOB_ID", None)
+
+if SLURM_ID is None:
+    # We're running a Slurm job
+    SAVE_DIR = os.path.join(
+        NEW_CHECKPOINTS_DIR, "musicbert_fork", str(round(time.time()))
+    )
+    # We can't use os.cpu_count() because it will show all the cpus on the node
+    #   rather than just those allocated to our job
+    CPUS_ON_NODE = os.getenv("SLURM_CPUS_ON_NODE", 1)
+else:
+    # We're not running a Slurm job
+    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", SLURM_ID)
+    CPUS_ON_NODE = os.cpu_count()
+
+os.makedirs(os.path.dirname(SAVE_DIR), exist_ok=True)
 
 DATA_BIN_DIR = args.data_bin_dir
 NN_ARCH = f"musicbert_{args.architecture}"
@@ -75,6 +100,7 @@ ARGS = (
             CPU_FLAG,
             f"--user-dir {USER_DIR}",
             RESTORE_FLAG,
+            f"--save-dir {SAVE_DIR}",
             f"--wandb-project {WANDB_PROJECT}",
             "--task musicbert_sequence_tagging",
             f"--arch {NN_ARCH}",
@@ -84,26 +110,40 @@ ARGS = (
             f"--classification-head-name {HEAD_NAME}",
             "--compound-token-ratio 8",
             f"--num-classes {NUM_CLASSES}",
+            # These `reset` params seem to be required for fine-tuning
             "--reset-optimizer",
             "--reset-dataloader",
             "--reset-meters",
+            # Most of following hyperparameters directly from musicbert scripts
+            # (they seem to be themselves borrowed from fairseq tutorial)
             "--optimizer adam",
             "--adam-betas (0.9,0.98)",
             "--adam-eps 1e-6",
             "--clip-norm 0.0",
             "--lr-scheduler polynomial_decay",
-            f"--lr {PEAK_LR}",
+            f"--lr {args.lr}",
             "--log-format simple",
             f"--warmup-updates {args.warmup_updates}",
             f"--total-num-update {args.total_updates}",
             f"--max-update {args.total_updates}",
             "--no-epoch-checkpoints",
             "--find-unused-parameters",
+            # TODO: (Malcolm 2023-08-29) update best checkpoint metric (f1?)
             "--best-checkpoint-metric accuracy",
             "--maximize-best-checkpoint-metric",
+            # I believe we need to keep max positions the same as musicbert
             "--max-positions 8192",
             "--required-batch-size-multiple 1",
+            # --shorten-method, --init-token, and --separator-token are unrecognized
+            #   arguments for token classification. TODO I should inspect this further.
+            # --shorten-method 'truncate'
+            # --init-token 0 --separator-token 2
+            #
+            # TODO: (Malcolm 2023-08-29) not sure what --max-tokens does
             f"--max-tokens {TOKENS_PER_SAMPLE * MAX_SENTENCES}",
+            # musicbert sets num workers to 0 for unknown reasons
+            # TODO: (Malcolm 2023-08-29) test number of workers
+            f"--num-workers {CPUS_ON_NODE}",
         ]
     ).split()
     + args_to_pass_on

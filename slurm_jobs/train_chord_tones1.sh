@@ -17,7 +17,7 @@ bash /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.sh \
     -d /home/ms3682/project/datasets/chord_tones/fairseq/chord_tones_seqs_bin \
     -a base \
     -W chord_tones_musicbert \
-    -c /home/ms3682/project/checkpoints/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt \
+    -c "${SAVED_CHECKPOINTS_DIR}"/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt \
     -u 50000 \
     -w 10000
 
