@@ -16,13 +16,13 @@ conda activate newbert
 set -x
 
 python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
-    -d /home/ms3682/project/datasets/chord_tones/fairseq/chord_tones_seqs_bin \
+    -d /home/ms3682/project/datasets/chord_tones/fairseq/chord_tones_augmented_bin \
     -a base \
     -W chord_tones_musicbert \
-    -c /home/ms3682/project/checkpoints/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt \
+    -c "${SAVED_CHECKPOINTS_DIR}"/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt \
     -u 50000 \
     -w 10000 \
-    --freeze-layers 11 # of 12
+    --freeze-layers 6 # of 12
 
 set +x
 
