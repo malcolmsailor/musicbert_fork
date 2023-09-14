@@ -18,8 +18,8 @@ python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
     -a base \
     -W chord_tones_musicbert \
     -c "${SAVED_CHECKPOINTS_DIR}"/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt \
-    -u 50000 \
-    -w 5000 \
+    -u 500000 \
+    -w 50000 \
     --batch-size 32
 
 set +x
