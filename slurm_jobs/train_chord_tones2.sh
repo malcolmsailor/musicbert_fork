@@ -21,7 +21,7 @@ python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
     -W chord_tones_musicbert \
     -c "${SAVED_CHECKPOINTS_DIR}"/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt \
     -u 50000 \
-    -w 10000 \
+    -w 5000 \
     --freeze-layers 6 # of 12
 
 set +x
