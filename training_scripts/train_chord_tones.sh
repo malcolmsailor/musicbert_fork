@@ -83,8 +83,6 @@ FAIRSEQ_ARGS=(
     ${CPU_FLAG}
     --user-dir ${USER_DIR}
     ${RESTORE_FLAG}
-    # TODO: (Malcolm 2023-09-12) remove this flag
-    --freeze-layers 1
     ${DEBUG_FLAG}
     --wandb-project ${WANDB_PROJECT}
     --task musicbert_sequence_tagging

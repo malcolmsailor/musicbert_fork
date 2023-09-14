@@ -173,3 +173,15 @@ Also:
 
 Why are some input tokens replaced by "<unk>"?
 > 2023-09-11 09:51:46 | INFO | fairseq_cli.preprocess | [None] /Users/malcolm/tmp/dummy_output1_raw/midi_train.txt: 8918 sents, 46377648 tokens, 2.4% replaced by <unk>
+
+# 2023-09-14
+
+Sadly, I didn't keep very good track of my past training runs. Trying to find where the logs are:
+```
+google_drive/python/data_science/chord_tones2/chord_tones2_hf_logs
+google_drive/python/data_science/chord_tones2/chord_tones2_hf_logs_colab
+```
+
+Frustratingly, hyperparameters and other commands don't seem to be saved so those runs aren't very reproducible. 
+
+I got excited about `/Users/malcolm/google_drive/python/data_science/chord_tones2/chord_tones2_hf_logs_colab/still_bigger` run which has `no_f1` of ~.8 (quite a lot better than I am now getting) but I realized that's because this was from when I was splitting chords (so the task was basically easier). Still, it would be nice to see the hyperparameters.

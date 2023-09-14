@@ -35,17 +35,10 @@ WARMUP_UPDATES = 25000
 # PEAK_LR=0.0005 # Borrowed from musicbert
 PEAK_LR = 0.01
 
-# NB in musicbert scripts, BATCH_SIZE is only used in the UPDATE_FREQ calculation below;
-#   the actual batch size to fairseq-train is set by MAX_SENTENCES arg
-BATCH_SIZE = 64
-MAX_SENTENCES = 4
-
-TOKENS_PER_SAMPLE = 8192
-
-HEAD_NAME = "sequence_tagging_head"
-
-UPDATE_FREQ_DENOM = max(N_GPU_LOCAL, 1)
-UPDATE_FREQ = BATCH_SIZE // (MAX_SENTENCES * UPDATE_FREQ_DENOM)
+# NB in musicbert scripts, UPDATE_BATCH_SIZE is only used in the UPDATE_FREQ calculation below;
+#   the actual batch size to fairseq-train is set by BATCH_SIZE arg
+UPDATE_BATCH_SIZE = 64
+BATCH_SIZE = 4
 
 
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
@@ -58,9 +51,19 @@ parser.add_argument("--architecture", "-a", required=True)
 parser.add_argument("--wandb-project", "-W", required=True)
 parser.add_argument("--total-updates", "-u", type=int, default=TOTAL_UPDATES)
 parser.add_argument("--warmup-updates", "-w", type=int, default=WARMUP_UPDATES)
+parser.add_argument("--update-batch-size", type=int, default=UPDATE_BATCH_SIZE)
+parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
 parser.add_argument("--lr", type=float, default=PEAK_LR)
 parser.add_argument("--checkpoint", "-c")
 args, args_to_pass_on = parser.parse_known_args()
+
+
+TOKENS_PER_SAMPLE = 8192
+
+HEAD_NAME = "sequence_tagging_head"
+
+UPDATE_FREQ_DENOM = max(N_GPU_LOCAL, 1)
+UPDATE_FREQ = min(args.update_batch_size // (args.batch_size * UPDATE_FREQ_DENOM), 1)
 
 NEW_CHECKPOINTS_DIR = os.environ["NEW_CHECKPOINTS_DIR"]
 
@@ -104,7 +107,7 @@ ARGS = (
             f"--wandb-project {WANDB_PROJECT}",
             "--task musicbert_sequence_tagging",
             f"--arch {NN_ARCH}",
-            f"--batch-size {MAX_SENTENCES}",
+            f"--batch-size {args.batch_size}",
             f"--update-freq {UPDATE_FREQ}",
             "--criterion sequence_tagging",
             f"--classification-head-name {HEAD_NAME}",
@@ -140,7 +143,7 @@ ARGS = (
             # --init-token 0 --separator-token 2
             #
             # TODO: (Malcolm 2023-08-29) not sure what --max-tokens does
-            f"--max-tokens {TOKENS_PER_SAMPLE * MAX_SENTENCES}",
+            f"--max-tokens {TOKENS_PER_SAMPLE * args.batch_size}",
             # musicbert sets num workers to 0 for unknown reasons
             # TODO: (Malcolm 2023-08-29) test number of workers
             f"--num-workers {CPUS_ON_NODE}",
