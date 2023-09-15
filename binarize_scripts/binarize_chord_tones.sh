@@ -29,14 +29,41 @@ fairseq-preprocess \
     --destdir ${DATA_BIN}/input0 \
     --srcdict ${DATA_RAW}/dict.input.txt \
     --workers $WORKERS
-fairseq-preprocess \
-    --only-source \
-    --trainpref ${DATA_RAW}/targets_train.txt \
-    --validpref ${DATA_RAW}/targets_valid.txt \
-    --testpref ${DATA_RAW}/targets_test.txt \
-    --destdir ${DATA_BIN}/label \
-    --workers $WORKERS
-# When we read the binarized version, there seems to be an extra token (EOS?) added to
-# each row.
 set +x
+
+if [[ ! -e ${DATA_RAW}/targets_0_train.txt ]]
+then
+    # Single target
+    set -x
+    fairseq-preprocess \
+        --only-source \
+        --trainpref ${DATA_RAW}/targets_train.txt \
+        --validpref ${DATA_RAW}/targets_valid.txt \
+        --testpref ${DATA_RAW}/targets_test.txt \
+        --destdir ${DATA_BIN}/label \
+        --workers $WORKERS
+    # When we read the binarized version, there seems to be an extra token (EOS?) added to
+    # each row.
+    set +x
+else
+    # Multi-target
+    target_i=0
+    while true; do
+        if [[ ! -e ${DATA_RAW}/targets_${target_i}_train.txt ]]; then
+            break
+        fi
+        set -x
+        fairseq-preprocess \
+            --only-source \
+            --trainpref ${DATA_RAW}/targets_${target_i}_train.txt \
+            --validpref ${DATA_RAW}/targets_${target_i}_valid.txt \
+            --testpref ${DATA_RAW}/targets_${target_i}_test.txt \
+            --destdir ${DATA_BIN}/label${target_i} \
+            --workers $WORKERS
+        # When we read the binarized version, there seems to be an extra token (EOS?) added to
+        # each row.
+        set +x
+        ((target_i++))
+    done
+fi
 

@@ -1,0 +1,739 @@
+"""Code in this file is based on this (closed and not merged) PR:
+https://github.com/facebookresearch/fairseq/pull/1709/files
+"""
+
+
+import logging
+import math
+import os
+import warnings
+from typing import Literal, Sequence
+
+import numpy as np
+import sklearn.metrics  # type:ignore
+import torch
+import torch.nn.functional as F
+from fairseq import metrics, utils
+from fairseq.criterions import FairseqCriterion, register_criterion
+from fairseq.data import (
+    Dictionary,
+    FairseqDataset,
+    IdDataset,
+    NestedDictionaryDataset,
+    NumelDataset,
+    NumSamplesDataset,
+    OffsetTokensDataset,
+    ReplaceDataset,
+    RightPadDataset,
+    SortDataset,
+    data_utils,
+)
+from fairseq.models import register_model, register_model_architecture
+from fairseq.models.roberta.model import RobertaModel
+from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
+from fairseq.tasks import FairseqTask, register_task
+from torch import nn
+
+from musicbert.token_classification import RobertaSequenceTaggingHead
+
+LOGGER = logging.getLogger(__name__)
+
+PAD_IDX = 1
+
+# To get around the fact that some methods are static, we use a global dictionary
+#   to store some attributes. Obviously this is a bit of a hack.
+
+TARGET_INFO = {}
+
+
+class AssertSameLengthDataset(FairseqDataset):
+    def __init__(self, first, seconds, first_to_second_ratio: int = 1):
+        self.first = first
+        self.seconds = seconds
+        self.first_to_second_ratio = first_to_second_ratio
+
+    def __getitem__(self, index):
+        for second in self.seconds:
+            assert (
+                torch.numel(self.first[index])
+                == torch.numel(second[index]) * self.first_to_second_ratio
+            )
+
+    def __len__(self):
+        return 0
+
+    def collater(self, samples):
+        return 0
+
+
+class RobertaSequenceMultiTaggingHead(nn.Module):
+    """Head for sequence tagging/token-level classification tasks."""
+
+    def __init__(
+        self,
+        input_dim,
+        inner_dim,
+        num_classes: Sequence[int],
+        activation_fn,
+        pooler_dropout,
+        q_noise=0,
+        qn_block_size=8,
+        do_spectral_norm=False,
+    ):
+        super().__init__()
+        sub_heads = []
+        for n_class in num_classes:
+            sub_heads.append(
+                RobertaSequenceTaggingHead(
+                    input_dim,
+                    inner_dim,
+                    n_class,
+                    activation_fn,
+                    pooler_dropout,
+                    q_noise,
+                    qn_block_size,
+                    do_spectral_norm,
+                )
+            )
+        self._sub_heads = nn.ModuleList(sub_heads)
+
+    def forward(self, features, **kwargs):
+        x = [sub_head(features) for sub_head in self._sub_heads]
+        # TODO: (Malcolm 2023-09-15) I'm not at all sure this is the correct return
+        #   value
+        return x
+
+
+@register_criterion("multitarget_sequence_tagging")
+class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
+    def __init__(self, task, classification_head_name):
+        super().__init__(task)
+        self.classification_head_name = classification_head_name
+        self.pad_idx = task.label_dictionaries[0].pad()
+        self.compound_token_ratio = self.task.args.compound_token_ratio
+
+    @staticmethod
+    def add_args(parser):
+        # fmt: off
+        parser.add_argument('--classification-head-name',
+                            default='multitarget_sequence_tagging_head',
+                            help='name of the classification head to use')
+        parser.add_argument('--compound-token-ratio', type=int, default=1)
+        # fmt: on
+
+    def forward(self, model, sample, reduce=True):
+        """Compute the loss for the given sample.
+        Returns a tuple with three elements:
+        1) the loss
+        2) the sample size, which is used as the denominator for the gradient
+        3) logging outputs to display while training
+        """
+        assert (
+            hasattr(model, "classification_heads")
+            and self.classification_head_name in model.classification_heads
+        ), "model must provide sentence classification head for --criterion=sequence_tagging"
+
+        multi_logits, _ = model(
+            **sample["net_input"],
+            features_only=True,
+            classification_head_name=self.classification_head_name,
+        )
+        adjusted_ntokens = sample["ntokens"] // self.compound_token_ratio
+        nsentences = sample["target0"].size(0)
+        sample_size = adjusted_ntokens - nsentences  # number of tokens without eos
+
+        logging_output = {
+            "ntokens": adjusted_ntokens,
+            "nsentences": nsentences,
+            "sample_size": sample_size,
+            # because `reduce_metrics` is a static method we need to
+            #   include the following in the logging output. (NB: if we make it
+            #  nonstatic we will get an exception because fairseq calls it on the
+            #   class rather than on an instance)
+            "nspecial": self.task.label_dictionaries[0].nspecial,
+        }
+        losses = []
+        masked_preds_list = []
+        masked_targets_list = []
+        for i, logits in enumerate(multi_logits):
+            targets = sample[f"target{i}"].view(-1)
+            logits = logits.view(-1, logits.size(-1))
+            this_loss = F.nll_loss(
+                F.log_softmax(logits, dim=-1, dtype=torch.float32),
+                targets,
+                ignore_index=self.pad_idx,
+                reduction="sum",
+            )
+            losses.append(this_loss)
+
+            # To get the same behavior as the original implementation we should ignore
+            #   all specials, not just pad. Not sure if we want to do this.
+
+            these_masked_preds = (
+                (logits[targets != self.pad_idx].argmax(dim=1)).detach().cpu().numpy()
+            )
+            these_masked_targets = (
+                targets[targets != self.pad_idx].detach().cpu().numpy()
+            )
+            masked_preds_list.append(these_masked_preds)
+            masked_targets_list.append(these_masked_targets)
+
+            logging_output[f"loss_{i}"] = this_loss.data
+            logging_output[f"y_true_{i}"] = these_masked_targets
+            logging_output[f"y_pred_{i}"] = these_masked_preds
+            logging_output[f"ncorrect_{i}"] = (
+                these_masked_preds == these_masked_targets
+            ).sum()
+
+        masked_preds = np.concatenate(masked_preds_list)
+        masked_targets = np.concatenate(masked_targets_list)
+
+        # TODO: (Malcolm 2023-09-15) allow weighting loss?
+        loss = torch.tensor(losses, requires_grad=True).mean()
+
+        logging_output.update(
+            {
+                "loss": loss.data,
+                # "ncorrect": utils.item((masked_preds == masked_targets).sum()),
+                "ncorrect": (masked_preds == masked_targets).sum(),
+                "y_true": masked_targets,
+                "y_pred": masked_preds,
+            }
+        )
+
+        return loss, sample_size, logging_output
+
+    @staticmethod
+    def reduce_metrics(logging_outputs) -> None:
+        """Aggregate logging outputs from data parallel training."""
+        n_targets = TARGET_INFO["n_targets"]
+        loss_sum = utils.item(sum(log.get("loss", 0) for log in logging_outputs))
+        ntokens = utils.item(sum(log.get("ntokens", 0) for log in logging_outputs))
+        nsentences = utils.item(
+            sum(log.get("nsentences", 0) for log in logging_outputs)
+        )
+        sample_size = utils.item(
+            sum(log.get("sample_size", 0) for log in logging_outputs)
+        )
+
+        # TODO: (Malcolm 2023-09-11) A few things I don't understand here:
+        #   1. why divide loss by log of 2?
+        #   2. why is "loss" divided by sample_size and "nll_loss"  is divided by
+        #       ntokens?
+        #           Note that ntokens should be the number of tokens including <eos>
+        #               and sample_size should be the number of tokens excluding <eos>
+        metrics.log_scalar(
+            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+        )
+        # sample_size should be the number of tokens w/o the
+        if sample_size != ntokens:
+            metrics.log_scalar(
+                "nll_loss", loss_sum / ntokens / math.log(2), ntokens, round=3
+            )
+
+        if len(logging_outputs) > 0 and "ncorrect" in logging_outputs[0]:
+            ncorrect = sum(log.get("ncorrect", 0) for log in logging_outputs)
+            metrics.log_scalar(
+                "accuracy",
+                100.0 * ncorrect / (sample_size * n_targets),
+                nsentences,
+                round=1,
+            )
+        warnings.filterwarnings(
+            "ignore",
+            message="y_pred contains classes not in y_true",
+            category=UserWarning,
+        )
+        if len(logging_outputs) > 0 and "y_pred" in logging_outputs[0]:
+            y_pred = np.concatenate(
+                tuple(log.get("y_pred") for log in logging_outputs if "y_pred" in log)
+            )
+            y_true = np.concatenate(
+                tuple(log.get("y_true") for log in logging_outputs if "y_true" in log)
+            )
+            for average in ["micro", "weighted"]:
+                (
+                    precision,
+                    recall,
+                    f1,
+                    support,
+                ) = sklearn.metrics.precision_recall_fscore_support(
+                    y_true, y_pred, average=average, zero_division=0.0  # type:ignore
+                )
+                metrics.log_scalar(f"precision_{average}", precision)  # type:ignore
+                metrics.log_scalar(f"recall_{average}", recall)  # type:ignore
+                metrics.log_scalar(f"f1_{average}", f1)  # type:ignore
+            balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
+            metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
+
+        n_special = TARGET_INFO["n_specials"]
+        for target_i in range(n_targets):
+            if not (
+                len(logging_outputs) > 0 and f"y_pred_{target_i}" in logging_outputs[0]
+            ):
+                continue
+            target_name = TARGET_INFO[f"target{target_i}_name"]
+
+            ncorrect = sum(
+                log.get(f"ncorrect_{target_i}", 0) for log in logging_outputs
+            )
+            metrics.log_scalar(
+                f"accuracy_{target_name}",
+                100.0 * ncorrect / sample_size,
+                nsentences,
+                round=1,
+            )
+
+            y_pred = np.concatenate(
+                tuple(
+                    log.get(f"y_pred_{target_i}")
+                    for log in logging_outputs
+                    if f"y_pred_{target_i}" in log
+                )
+            )
+            y_true = np.concatenate(
+                tuple(
+                    log.get(f"y_true_{target_i}")
+                    for log in logging_outputs
+                    if f"y_true_{target_i}" in log
+                )
+            )
+
+            for average in ["micro", "weighted"]:
+                (
+                    precision,
+                    recall,
+                    f1,
+                    support,
+                ) = sklearn.metrics.precision_recall_fscore_support(
+                    y_true, y_pred, average=average, zero_division=0.0  # type:ignore
+                )
+                metrics.log_scalar(
+                    f"precision_{target_name}_{average}", precision  # type:ignore
+                )
+                metrics.log_scalar(
+                    f"recall_{target_name}_{average}", recall  # type:ignore
+                )
+                metrics.log_scalar(f"f1_{target_name}_{average}", f1)  # type:ignore
+            balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
+            metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
+
+            no_specials_mask = y_true >= n_special  # type:ignore
+            confused = sklearn.metrics.confusion_matrix(
+                y_true[no_specials_mask] - n_special,
+                y_pred[no_specials_mask] - n_special,
+            )
+            with np.errstate(divide="ignore", invalid="ignore"):
+                precision_per_class = np.nan_to_num(
+                    confused.diagonal() / confused.sum(axis=0)
+                )
+                recall_per_class = np.nan_to_num(
+                    confused.diagonal() / confused.sum(axis=1)
+                )
+                f1_per_class = np.nan_to_num(
+                    (2 * precision_per_class * recall_per_class)
+                    / (precision_per_class + recall_per_class)
+                )
+
+            labels = TARGET_INFO[f"target{target_i}_vocab"]
+
+            for (
+                label_i,
+                label,
+            ) in enumerate(labels):
+                # specials may or may not be included in the metric arrays, but we
+                #   don't want to log them. So instead we do as follows:
+                class_i = len(precision_per_class) - len(labels) + label_i
+                metrics.log_scalar(
+                    f"precision_{target_name}_{label}", precision_per_class[class_i]
+                )
+                metrics.log_scalar(
+                    f"recall_{target_name}_{label}", recall_per_class[class_i]
+                )
+                metrics.log_scalar(f"f1_{target_name}_{label}", f1_per_class[class_i])
+
+    @staticmethod
+    def logging_outputs_can_be_summed() -> bool:
+        """
+        Whether the logging outputs returned by `forward` can be summed
+        across workers prior to calling `reduce_metrics`. Setting this
+        to True will improves distributed training speed.
+        """
+        return True
+
+
+# # class MusicBERTSequenceTaggingModel(RobertaModel):
+# #     def register_sequence_tagging_head(
+# #         self, name, num_classes=None, inner_dim=None, **kwargs
+# #     ):
+# #         """Register a classification head."""
+# #         if name in self.classification_heads:
+# #             prev_num_classes = self.classification_heads[  # type:ignore
+# #                 name
+# #             ].out_proj.out_features  # type:ignore
+# #             prev_inner_dim = self.classification_heads[  # type:ignore
+# #                 name
+# #             ].dense.out_features  # type:ignore
+# #             if num_classes != prev_num_classes or inner_dim != prev_inner_dim:
+# #                 LOGGER.warning(
+# #                     're-registering head "{}" with num_classes {} (prev: {}) '
+# #                     "and inner_dim {} (prev: {})".format(
+# #                         name, num_classes, prev_num_classes, inner_dim, prev_inner_dim
+# #                     )
+# #                 )
+# #         self.classification_heads[name] = RobertaSequenceTaggingHead(  # type:ignore
+# #             input_dim=self.args.encoder_embed_dim,  # type:ignore
+# #             inner_dim=inner_dim or self.args.encoder_embed_dim,  # type:ignore
+# #             num_classes=num_classes,
+# #             activation_fn=self.args.pooler_activation_fn,  # type:ignore
+# #             pooler_dropout=self.args.pooler_dropout,  # type:ignore
+# #             q_noise=self.args.quant_noise_pq,  # type:ignore
+# #             qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
+# #             do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
+# #         )
+
+
+@register_task("musicbert_multitarget_sequence_tagging")
+class MultiTargetSequenceTaggingTask(FairseqTask):
+    """
+    Sequence tagging (also called sentence tagging or sequence labelling) task that predicts a class for each input token.
+    Inputs should be stored in 'input0' directory, labels in 'label' directory.
+    Args:
+        dictionary (Dictionary): the dictionary for the input of the task
+    """
+
+    upsample_encoder: bool = False
+
+    @staticmethod
+    def add_args(parser):
+        """Add task-specific arguments to the parser."""
+        parser.add_argument("data", metavar="FILE", help="file prefix for data")
+        # -1 raises an exception below; --num-classes is required
+        parser.add_argument(
+            "--num-classes",
+            nargs="+",
+            type=int,
+            default=-1,
+            help="number of classes for each target (required)",
+        )
+        parser.add_argument("--target-names", nargs="+", required=True)
+        parser.add_argument("--msdebug", action="store_true")
+        # (Malcolm 2023-09-05) not sure why we would want to not shuffle
+        parser.add_argument("--no-shuffle", action="store_true", default=False)
+        parser.add_argument("--freeze-layers", type=int, default=-1)
+
+    def __init__(self, args, data_dictionary, label_dictionaries):
+        if args.msdebug:
+            import pdb
+            import sys
+            import traceback
+
+            def custom_excepthook(exc_type, exc_value, exc_traceback):
+                traceback.print_exception(
+                    exc_type, exc_value, exc_traceback, file=sys.stdout
+                )
+                pdb.post_mortem(exc_traceback)
+
+            sys.excepthook = custom_excepthook
+        super().__init__(args)
+        self.dictionary = data_dictionary
+        # TODO: (Malcolm 2023-09-15) see if I can remove this
+        # (Malcolm 2023-09-12) for printing label names to work above these
+        #   assertions need to be correct. If we remove the staticmethod decorator
+        #   we could probably get rid of this
+        # assert label_dictionary[4] == "yes"
+        # assert label_dictionary[5] == "no"
+        # self._label_dictionary = label_dictionary
+        self._label_dictionaries = tuple(label_dictionaries)
+
+        if not hasattr(args, "max_positions"):
+            # TODO: (Malcolm 2023-09-08) this will raise an attribute error
+            # We just provide max positions as an arg
+            raise NotImplementedError("Provide '--max-positions'")
+            self._max_positions = (
+                args.max_source_positions,
+                args.max_target_positions,
+            )
+        else:
+            self._max_positions = args.max_positions
+        args.tokens_per_sample = self._max_positions  # tuple[int, int] ?
+        # The code from the PR seems to assume that the task has an `args attribute`
+        self.args = args
+        self.num_targets = len(args.num_classes)
+        self.target_names = args.target_names
+        assert self.num_targets == len(self.target_names)
+
+        # Put necessary contents into TARGET_INFO
+        n_specials_set = {d.nspecial for d in self._label_dictionaries}
+        assert len(n_specials_set) == 1
+        n_specials = tuple(n_specials_set)[0]
+        TARGET_INFO["n_targets"] = self.num_targets
+        TARGET_INFO["n_specials"] = n_specials
+        for i, (target_name, n_classes, label_dictionary) in enumerate(
+            zip(self.target_names, args.num_classes, self.label_dictionaries)
+        ):
+            targets = [label_dictionary[n_specials + j] for j in range(n_classes)]
+            TARGET_INFO[f"target{i}_vocab"] = targets
+            TARGET_INFO[f"target{i}_name"] = target_name
+
+    @classmethod
+    def load_dictionary(cls, args, filename, source=True):
+        """Load the dictionary from the filename
+        Args:
+            filename (str): the filename
+        """
+        dictionary = Dictionary.load(filename)
+        # (Malcolm 2023-09-05) We need the <mask> symbol not because we use it but
+        #   so that the dictionary sizes match with the pretrained checkpoints.
+        dictionary.add_symbol("<mask>")
+        # TODO: (Malcolm 2023-09-15) do we also need <mask> for label dictionaries?
+        return dictionary
+
+    @classmethod
+    def setup_task(cls, args, **kwargs):
+        assert isinstance(args.num_classes, list) and all(
+            x > 0 for x in args.num_classes
+        )
+
+        # load data dictionary
+        data_dict = cls.load_dictionary(
+            args,
+            os.path.join(args.data, "input0", "dict.txt"),
+            source=True,
+        )
+        LOGGER.info("[input] dictionary: {} types".format(len(data_dict)))
+        label_dicts = []
+        for i in range(len(args.num_classes)):
+            # load label dictionary
+            # TODO: (Malcolm 2023-09-15) double check the file-name format
+            label_dict = cls.load_dictionary(
+                args,
+                os.path.join(args.data, f"label{i}", f"dict.txt"),
+                source=False,
+            )
+            label_dicts.append(label_dict)
+            LOGGER.info(f"[label] dictionary {i}: {len(label_dict)} types")
+        return MultiTargetSequenceTaggingTask(
+            args, data_dict, label_dicts  # type:ignore
+        )
+
+    #     def print_examples(
+    #         self,
+    #         epoch,
+    #         model: nn.Module,
+    #         split: Literal["train", "valid"],
+    #         indices: Sequence[int],
+    #         max_tokens_to_print=16,
+    #         token_length=1,
+    #     ):
+    #         model_state = model.training
+    #         model.eval()
+    #         dataset = self.datasets[split]
+    #         samples = [dataset[i] for i in indices]
+    #         batch = dataset.collater(samples)
+
+    #         # Hack to get the device of the model
+    #         device = next(model.parameters()).device
+
+    #         # Move input to model device
+    #         net_input = {k: v.to(device) for k, v in batch["net_input"].items()}
+
+    #         logits, _ = model(
+    #             **net_input,
+    #             features_only=True,
+    #             classification_head_name="sequence_tagging_head",
+    #         )
+    #         logits = logits.to("cpu")
+    #         preds = logits.argmax(dim=-1)
+    #         total_correct = 0
+    #         total = 0
+    #         for i, (pred, target) in enumerate(zip(preds, batch["target"])):
+    #             # Ignore padding/bos/eos
+    #             valid_mask = target >= 0
+    #             pred = pred[valid_mask]
+    #             target = target[valid_mask]
+    #             total += valid_mask.sum()
+    #             total_correct += (pred == target).sum()
+
+    #             #
+    #             pred = pred[:max_tokens_to_print]
+    #             target = target[:max_tokens_to_print]
+
+    #             # We need to adjust for the specials at the beginning
+    #             #   of the dictionary
+    #             # pred += self.label_dictionary.nspecial
+    #             # target += self.label_dictionary.nspecial
+
+    #             target_tokens = self.label_dictionary.string(target)
+    #             pred_tokens = self.label_dictionary.string(pred)
+    #             target_tokens = [
+    #                 f"{x[:token_length]:<{token_length}}" for x in target_tokens.split()
+    #             ]
+    #             pred_tokens = [
+    #                 f"{x[:token_length]:<{token_length}}" for x in pred_tokens.split()
+    #             ]
+    #             target_tokens = " ".join(target_tokens)
+    #             pred_tokens = " ".join(pred_tokens)
+
+    #             LOGGER.info(f"Epoch {epoch} {split} target     {i + 1}: {target_tokens}")
+    #             LOGGER.info(f"Epoch {epoch} {split} prediction {i + 1}: {pred_tokens}")
+
+    #         model.train(model_state)
+
+    # TODO: (Malcolm 2023-09-15) implement
+    #     def begin_valid_epoch(self, epoch, model):
+    #         """As a sanity check, print out example outputs for training and validation sets."""
+
+    #         self.print_examples(epoch, model, "train", [0, 1, 2, 3])
+    #         self.print_examples(epoch, model, "valid", [0, 1, 2, 3])
+
+    def load_dataset(self, split, combine=False, **kwargs):
+        """Load a given dataset split (e.g., train, valid, test)."""
+
+        def get_path(type, split):
+            return os.path.join(self.args.data, type, split)  # type:ignore
+
+        def make_dataset(type, dictionary):
+            split_path = get_path(type, split)
+
+            dataset = data_utils.load_indexed_dataset(
+                split_path,
+                dictionary,
+                self.args.dataset_impl,  # type:ignore
+                combine=combine,
+            )
+            assert dataset is not None, "could not find dataset: {}".format(
+                get_path(type, split)
+            )
+            return dataset
+
+        src_tokens = make_dataset("input0", self.source_dictionary)
+
+        dataset = {}
+        label_datasets = []
+        for i, label_dictionary in enumerate(self.label_dictionaries):
+            label_dataset = make_dataset(f"label{i}", label_dictionary)
+
+            # (Malcolm 2023-09-08) The code that I based this off of includes the
+            #   following commented out lines so that we only predict items in the
+            #   target vocabulary and not specials. However that doesn't seem necessary
+            #   and there seem to be some weird bugs going on so I'm disabling that for
+            #   now.
+
+            # OffsetTokensDataset offsets tokens to get the targets to the
+            # correct range (0,1,2,...)
+            # label_dataset = OffsetTokensDataset(
+            #     label_dataset,
+            #     offset=-self.label_dictionary.nspecial,
+            # )
+            # ReplaceDataset replaces specials (bos, eos, and existing padding used when some
+            # tokens should not be predicted) with -1
+            # label_dataset = ReplaceDataset(
+            #     label_dataset,
+            #     replace_map={i: -1 for i in range(-self.label_dictionary.nspecial, 0)},
+            #     offsets=np.zeros(len(label_dataset), dtype=int),
+            # )
+            # RightPadDataset uses -1 as padding, will be used to mask out padding
+            # when calculating loss
+            label_dataset = RightPadDataset(
+                label_dataset, pad_idx=label_dictionary.pad()
+            )
+            assert label_dictionary.pad() == self.source_dictionary.pad() == PAD_IDX
+
+            dataset[f"target{i}"] = label_dataset
+            label_datasets.append(label_dataset)
+
+        dataset.update(
+            {
+                "id": IdDataset(),
+                "net_input": {
+                    "src_tokens": RightPadDataset(
+                        src_tokens,
+                        pad_idx=self.source_dictionary.pad(),
+                    ),
+                    "src_lengths": NumelDataset(src_tokens, reduce=False),
+                },
+                "nsentences": NumSamplesDataset(),
+                "ntokens": NumelDataset(src_tokens, reduce=True),
+                "_assert_lengths_match": AssertSameLengthDataset(
+                    src_tokens, label_datasets, self.args.compound_token_ratio
+                ),
+            }
+        )
+
+        nested_dataset = NestedDictionaryDataset(
+            dataset,
+            sizes=[src_tokens.sizes],
+        )
+
+        if self.args.no_shuffle:  # type:ignore
+            dataset = nested_dataset
+        else:
+            with data_utils.numpy_seed(self.args.seed):  # type:ignore
+                shuffle = np.random.permutation(len(src_tokens))
+            dataset = SortDataset(
+                nested_dataset,
+                # shuffle
+                sort_order=[shuffle],
+            )
+
+        LOGGER.info("Loaded {0} with #samples: {1}".format(split, len(dataset)))
+
+        self.datasets[split] = dataset
+        return self.datasets[split]
+
+    def build_model(self, args):
+        from fairseq import models
+
+        model = models.build_model(args, self)
+
+        if args.freeze_layers > 0:
+            LOGGER.info(f"Freezing {args.freeze_layers=} layers")
+            # What we *don't* want to freeze:
+            # 1. the last n - freeze_layers encoder layers
+            # 2. the classification head
+            n_layers = len(model.encoder.sentence_encoder.layers)
+            assert n_layers >= args.freeze_layers
+
+            for parameter in model.parameters():
+                parameter.requires_grad = False
+
+            for layer_i, layer in enumerate(model.encoder.sentence_encoder.layers):
+                if layer_i < args.freeze_layers:
+                    continue
+                for parameter in layer.parameters():
+                    parameter.requires_grad = True
+
+            if model.encoder.sentence_encoder.upsample:
+                for parameter in model.encoder.sentence_encoder.upsampling.parameters():
+                    parameter.requires_grad = True
+
+        # We register the sequence tagging head after any freezing so that it won't
+        #   be frozen
+        num_classes = []
+        for n, dict in zip(self.args.num_classes, self.label_dictionaries):
+            num_classes.append(n + dict.nspecial)
+        model.register_multitarget_sequence_tagging_head(
+            getattr(
+                args, "classification_head_name", "multitarget_sequence_tagging_head"
+            ),
+            num_classes=num_classes,
+            sequence_tagging=True,
+        )
+
+        return model
+
+    def max_positions(self):
+        return self._max_positions
+
+    @property
+    def source_dictionary(self):
+        return self.dictionary
+
+    @property
+    def target_dictionary(self):
+        return self.dictionary
+
+    @property
+    def label_dictionaries(self):
+        return self._label_dictionaries
