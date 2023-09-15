@@ -6,7 +6,7 @@ import logging
 import math
 import os
 from functools import lru_cache
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import fairseq.tasks.masked_lm
 import fairseq.tasks.sentence_prediction
@@ -34,6 +34,7 @@ from fairseq.tasks.sentence_prediction import SentencePredictionTask
 
 from musicbert.freezable_roberta import FreezableRobertaEncoder
 from musicbert.token_classification import RobertaSequenceTaggingHead
+from musicbert.token_classification_multi_target import RobertaSequenceMultiTaggingHead
 
 LOGGER = logging.getLogger(__name__)
 
@@ -440,6 +441,24 @@ class MusicBERTModel(RobertaModel):
                     )
                 )
         self.classification_heads[name] = RobertaSequenceTaggingHead(  # type:ignore
+            input_dim=self.args.encoder_embed_dim,  # type:ignore
+            inner_dim=inner_dim or self.args.encoder_embed_dim,  # type:ignore
+            num_classes=num_classes,
+            activation_fn=self.args.pooler_activation_fn,  # type:ignore
+            pooler_dropout=self.args.pooler_dropout,  # type:ignore
+            q_noise=self.args.quant_noise_pq,  # type:ignore
+            qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
+            do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
+        )
+
+    def register_multitarget_sequence_tagging_head(
+        self, name, num_classes: Sequence[int], inner_dim=None, **kwargs
+    ):
+        """Register a classification head."""
+        assert name not in self.classification_heads
+        self.classification_heads[  # type:ignore
+            name
+        ] = RobertaSequenceMultiTaggingHead(
             input_dim=self.args.encoder_embed_dim,  # type:ignore
             inner_dim=inner_dim or self.args.encoder_embed_dim,  # type:ignore
             num_classes=num_classes,

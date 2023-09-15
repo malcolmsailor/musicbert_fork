@@ -185,3 +185,6 @@ google_drive/python/data_science/chord_tones2/chord_tones2_hf_logs_colab
 Frustratingly, hyperparameters and other commands don't seem to be saved so those runs aren't very reproducible. 
 
 I got excited about `/Users/malcolm/google_drive/python/data_science/chord_tones2/chord_tones2_hf_logs_colab/still_bigger` run which has `no_f1` of ~.8 (quite a lot better than I am now getting) but I realized that's because this was from when I was splitting chords (so the task was basically easier). Still, it would be nice to see the hyperparameters.
+
+# Fairseq training commands
+- `--validate-interval-updates`: validate every N updates (default is 0, where we validate after every epoch; if epoch gets very long we may wish to validate more often)

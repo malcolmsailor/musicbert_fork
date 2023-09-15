@@ -324,14 +324,6 @@ class SequenceTaggingTask(FairseqTask):
         parser.add_argument("--no-shuffle", action="store_true", default=False)
         parser.add_argument("--freeze-layers", type=int, default=-1)
 
-        # (Malcolm 2023-09-08) more args; adding these for the eval script but I
-        #   suspect there is a better way
-        # (Malcolm 2023-09-08) Actually this causes a "conflicting option string"
-        #   exception
-        # parser.add_argument(
-        #     "--max-positions", type=int, help="number of positional embeddings to learn"
-        # )
-
     def __init__(self, args, data_dictionary, label_dictionary):
         if args.msdebug:
             import pdb

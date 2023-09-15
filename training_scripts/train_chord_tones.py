@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import time
+from itertools import count
 
 
 def shell(cmd):
@@ -55,12 +56,12 @@ parser.add_argument("--update-batch-size", type=int, default=UPDATE_BATCH_SIZE)
 parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
 parser.add_argument("--lr", type=float, default=PEAK_LR)
 parser.add_argument("--checkpoint", "-c")
+parser.add_argument("--multitarget", action="store_true")
 args, args_to_pass_on = parser.parse_known_args()
 
 
 TOKENS_PER_SAMPLE = 8192
 
-HEAD_NAME = "sequence_tagging_head"
 
 UPDATE_FREQ_DENOM = max(N_GPU_LOCAL, 1)
 UPDATE_FREQ = min(args.update_batch_size // (args.batch_size * UPDATE_FREQ_DENOM), 1)
@@ -90,11 +91,42 @@ WANDB_PROJECT = args.wandb_project
 
 RESTORE_FLAG = "" if not args.checkpoint else f"--restore-file {args.checkpoint}"
 
-label_dict_file = os.path.join(DATA_BIN_DIR, "label", "dict.txt")
-with open(label_dict_file, "r") as label_file:
-    NUM_CLASSES = len(
-        [line for line in label_file if not re.match(r"madeupword[0-9]{4}", line)]
-    )
+if args.multitarget:
+    num_classes = []
+    for i in count():
+        label_dict_file = os.path.join(DATA_BIN_DIR, f"label{i}", "dict.txt")
+        if not os.path.exists(label_dict_file):
+            break
+        with open(label_dict_file, "r") as label_file:
+            num_classes.append(
+                str(
+                    len(
+                        [
+                            line
+                            for line in label_file
+                            if not re.match(r"madeupword[0-9]{4}", line)
+                        ]
+                    )
+                )
+            )
+    NUM_CLASSES = " ".join(num_classes)
+else:
+    label_dict_file = os.path.join(DATA_BIN_DIR, "label", "dict.txt")
+    with open(label_dict_file, "r") as label_file:
+        NUM_CLASSES = len(
+            [line for line in label_file if not re.match(r"madeupword[0-9]{4}", line)]
+        )
+
+TASK = (
+    "musicbert_multitarget_sequence_tagging"
+    if args.multitarget
+    else "musicbert_sequence_tagging"
+)
+
+HEAD_NAME = (
+    "sequence_multitarget_tagging_head" if args.multitarget else "sequence_tagging_head"
+)
+CRITERION = "multitarget_sequence_tagging" if args.multitarget else "sequence_tagging"
 
 ARGS = (
     " ".join(
@@ -105,11 +137,11 @@ ARGS = (
             RESTORE_FLAG,
             f"--save-dir {SAVE_DIR}",
             f"--wandb-project {WANDB_PROJECT}",
-            "--task musicbert_sequence_tagging",
+            f"--task {TASK}",
             f"--arch {NN_ARCH}",
             f"--batch-size {args.batch_size}",
             f"--update-freq {UPDATE_FREQ}",
-            "--criterion sequence_tagging",
+            f"--criterion {CRITERION}",
             f"--classification-head-name {HEAD_NAME}",
             "--compound-token-ratio 8",
             f"--num-classes {NUM_CLASSES}",
