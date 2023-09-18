@@ -15,7 +15,7 @@ conda activate newbert
 
 set -x
 
-echo python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
+python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
     -d /home/ms3682/project/datasets/chord_tones/fairseq/chord_tones_augmented_bin \
     -a base \
     -W chord_tones_musicbert \
