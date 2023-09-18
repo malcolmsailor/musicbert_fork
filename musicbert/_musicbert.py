@@ -32,6 +32,11 @@ from fairseq.models.roberta import (  # RobertaEncoder,
 from fairseq.tasks import LegacyFairseqTask, register_task
 from fairseq.tasks.sentence_prediction import SentencePredictionTask
 
+# TODO: (Malcolm 2023-09-18) if I'm not actually using the freezable encoder,
+#   I should probably remove it. (I implemented per-layer freezing elsewhere, the
+#   FreezableRobertaEncoder freezes everything except the lm head. It also
+#   disables dropout which is probably good. Less obvious how to disable
+#   dropout on a per-layer basis.)
 from musicbert.freezable_roberta import FreezableRobertaEncoder
 from musicbert.token_classification import RobertaSequenceTaggingHead
 from musicbert.token_classification_multi_target import RobertaSequenceMultiTaggingHead
