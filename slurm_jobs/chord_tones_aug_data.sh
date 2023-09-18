@@ -8,8 +8,6 @@
 #SBATCH --mail-type=ALL
 #SBATCH -o /home/ms3682/slurm_output/%j.out # Note that directory will not be created if it does not exist; also, ~ expansion doesn't seem to work
 
-# Applies freezing
-
 module load miniconda
 conda activate newbert
 
