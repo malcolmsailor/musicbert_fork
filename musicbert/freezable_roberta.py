@@ -73,7 +73,7 @@ class FreezableRobertaEncoder(RobertaEncoder):
         features_only=False,
         return_all_hiddens=False,
         masked_tokens=None,
-        freeze_encoder=True,
+        freeze_encoder=False,
         **unused
     ):
         """

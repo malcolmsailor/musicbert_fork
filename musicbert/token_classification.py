@@ -38,6 +38,9 @@ LOGGER = logging.getLogger(__name__)
 
 PAD_IDX = 1
 
+# TODO: (Malcolm 2023-09-15) remove
+TEMP_CACHE = {}
+
 
 class AssertSameLengthDataset(FairseqDataset):
     def __init__(self, first, second, first_to_second_ratio: int = 1):
@@ -128,11 +131,13 @@ class SequenceTaggingCriterion(FairseqCriterion):
             hasattr(model, "classification_heads")
             and self.classification_head_name in model.classification_heads
         ), "model must provide sentence classification head for --criterion=sequence_tagging"
+
         logits, _ = model(
             **sample["net_input"],
             features_only=True,
             classification_head_name=self.classification_head_name,
         )
+
         targets = model.get_targets(sample, [logits]).view(-1)
         adjusted_ntokens = sample["ntokens"] // self.compound_token_ratio
         nsentences = sample["target"].size(0)
@@ -454,6 +459,40 @@ class SequenceTaggingTask(FairseqTask):
             LOGGER.info(f"Epoch {epoch} {split} prediction {i + 1}: {pred_tokens}")
 
         model.train(model_state)
+
+    def begin_epoch(self, epoch, model):
+        # TODO: (Malcolm 2023-09-15) remove
+        for name, param in model.named_parameters():
+            ex_weight = param.data.detach().reshape(-1)[0].item()
+            if name in TEMP_CACHE:
+                prev_weight = TEMP_CACHE[name]
+                equals = ex_weight == prev_weight
+                print(
+                    f"{name}: {'equal    ' if equals else 'not equal'} {prev_weight} {ex_weight}"
+                )
+            TEMP_CACHE[name] = ex_weight
+
+        breakpoint()
+        l1_weight = (
+            model.encoder.sentence_encoder.layers[0]
+            .fc1.weight.data.reshape(-1)[0]
+            .item()
+        )
+        l2_weight = (
+            model.encoder.sentence_encoder.layers[1]
+            .fc1.weight.data.reshape(-1)[0]
+            .item()
+        )
+        c_weight = (
+            model.classification_heads.sequence_tagging_head.dense.weight.data.reshape(
+                -1
+            )[0].item()
+        )
+        # if model.encoder.sentence_encoder.layers[1].fc1.weight.requires_grad:
+        #     print(l1_weight)
+        #     print(l2_weight)
+        #     print(c_weight)
+        #     breakpoint()
 
     def begin_valid_epoch(self, epoch, model):
         """As a sanity check, print out example outputs for training and validation sets."""
