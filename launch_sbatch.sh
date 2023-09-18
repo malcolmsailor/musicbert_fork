@@ -17,4 +17,4 @@ fi
 # sbatch "${JOB}"
 
 
-echo sbatch "${@}"
+sbatch "${@}"
