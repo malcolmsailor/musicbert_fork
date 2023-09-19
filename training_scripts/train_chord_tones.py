@@ -76,7 +76,7 @@ NEW_CHECKPOINTS_DIR = os.environ["NEW_CHECKPOINTS_DIR"]
 
 SLURM_ID = os.getenv("SLURM_JOB_ID", None)
 
-if SLURM_ID is None:
+if SLURM_ID is not None:
     # We're running a Slurm job
     SAVE_DIR = os.path.join(
         NEW_CHECKPOINTS_DIR, "musicbert_fork", str(round(time.time()))

@@ -189,3 +189,6 @@ I got excited about `/Users/malcolm/google_drive/python/data_science/chord_tones
 
 # Fairseq training commands
 - `--validate-interval-updates`: validate every N updates (default is 0, where we validate after every epoch; if epoch gets very long we may wish to validate more often)
+
+
+# 
