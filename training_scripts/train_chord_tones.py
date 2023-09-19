@@ -78,15 +78,15 @@ SLURM_ID = os.getenv("SLURM_JOB_ID", None)
 
 if SLURM_ID is not None:
     # We're running a Slurm job
-    SAVE_DIR = os.path.join(
-        NEW_CHECKPOINTS_DIR, "musicbert_fork", str(round(time.time()))
-    )
+    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", SLURM_ID)
     # We can't use os.cpu_count() because it will show all the cpus on the node
     #   rather than just those allocated to our job
     CPUS_ON_NODE = os.getenv("SLURM_CPUS_ON_NODE", 1)
 else:
     # We're not running a Slurm job
-    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", SLURM_ID)
+    SAVE_DIR = os.path.join(
+        NEW_CHECKPOINTS_DIR, "musicbert_fork", str(round(time.time()))
+    )
     CPUS_ON_NODE = os.cpu_count()
 
 os.makedirs(os.path.dirname(SAVE_DIR), exist_ok=True)
