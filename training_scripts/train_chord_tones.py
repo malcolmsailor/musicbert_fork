@@ -87,7 +87,8 @@ else:
     SAVE_DIR = os.path.join(
         NEW_CHECKPOINTS_DIR, "musicbert_fork", str(round(time.time()))
     )
-    CPUS_ON_NODE = os.cpu_count()
+# TODO: (Malcolm 2023-09-19) restore
+CPUS_ON_NODE = os.cpu_count()
 
 os.makedirs(os.path.dirname(SAVE_DIR), exist_ok=True)
 
