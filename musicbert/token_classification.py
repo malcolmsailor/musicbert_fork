@@ -117,9 +117,9 @@ def get_loss_weights(dictionary, weight_coef):
     inv_proportions = 1 - proportions
     adjusted = len(counts) * inv_proportions
     interpolated = (1 - weight_coef) + weight_coef * adjusted
-    out = torch.concat(
-        [torch.ones(dictionary.nspecial), interpolated, torch.ones(n_appended_tokens)]
-    )
+    # It looks like we don't want to append the interpolated tokens since the targets
+    #   only have the specials plus the actual tokens
+    out = torch.concat([torch.ones(dictionary.nspecial), interpolated])
     return out
 
 
