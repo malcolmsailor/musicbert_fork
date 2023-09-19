@@ -173,6 +173,7 @@ Also:
 
 Why are some input tokens replaced by "<unk>"?
 > 2023-09-11 09:51:46 | INFO | fairseq_cli.preprocess | [None] /Users/malcolm/tmp/dummy_output1_raw/midi_train.txt: 8918 sents, 46377648 tokens, 2.4% replaced by <unk>
+This was because of some issues in the encoding, which now are fixed. I seem to get 0.0% <unk> now.
 
 # 2023-09-14
 
