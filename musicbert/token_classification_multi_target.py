@@ -100,7 +100,7 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
     def forward(self, features, **kwargs):
         x = [sub_head(features) for sub_head in self._sub_heads]
         # TODO: (Malcolm 2023-09-15) I'm not at all sure this is the correct return
-        #   value
+        #   value; based on testing elsewhere I think it should be ok
         return x
 
 
@@ -189,7 +189,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         masked_targets = np.concatenate(masked_targets_list)
 
         # TODO: (Malcolm 2023-09-15) allow weighting loss?
-        loss = torch.tensor(losses, requires_grad=True).mean()
+        loss = torch.stack(losses).mean()
 
         logging_output.update(
             {
@@ -418,8 +418,6 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         )
         parser.add_argument("--target-names", nargs="+", required=True)
         parser.add_argument("--msdebug", action="store_true")
-        # (Malcolm 2023-09-05) not sure why we would want to not shuffle
-        parser.add_argument("--no-shuffle", action="store_true", default=False)
         parser.add_argument("--freeze-layers", type=int, default=-1)
 
     def __init__(self, args, data_dictionary, label_dictionaries):
@@ -437,13 +435,6 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
             sys.excepthook = custom_excepthook
         super().__init__(args)
         self.dictionary = data_dictionary
-        # TODO: (Malcolm 2023-09-15) see if I can remove this
-        # (Malcolm 2023-09-12) for printing label names to work above these
-        #   assertions need to be correct. If we remove the staticmethod decorator
-        #   we could probably get rid of this
-        # assert label_dictionary[4] == "yes"
-        # assert label_dictionary[5] == "no"
-        # self._label_dictionary = label_dictionary
         self._label_dictionaries = tuple(label_dictionaries)
 
         if not hasattr(args, "max_positions"):
@@ -666,16 +657,13 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
             sizes=[src_tokens.sizes],
         )
 
-        if self.args.no_shuffle:  # type:ignore
-            dataset = nested_dataset
-        else:
-            with data_utils.numpy_seed(self.args.seed):  # type:ignore
-                shuffle = np.random.permutation(len(src_tokens))
-            dataset = SortDataset(
-                nested_dataset,
-                # shuffle
-                sort_order=[shuffle],
-            )
+        with data_utils.numpy_seed(self.args.seed):  # type:ignore
+            shuffle = np.random.permutation(len(src_tokens))
+        dataset = SortDataset(
+            nested_dataset,
+            # shuffle
+            sort_order=[shuffle],
+        )
 
         LOGGER.info("Loaded {0} with #samples: {1}".format(split, len(dataset)))
 
