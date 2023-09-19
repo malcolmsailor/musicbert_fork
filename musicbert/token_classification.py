@@ -192,7 +192,7 @@ class SequenceTaggingCriterion(FairseqCriterion):
             targets,
             ignore_index=self.pad_idx,
             reduction="sum",
-            # weight=self.loss_weights,
+            weight=self.loss_weights,
         )
 
         # To get the same behavior as the original implementation we should ignore
