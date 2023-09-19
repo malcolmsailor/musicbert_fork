@@ -36,7 +36,7 @@ DEFAULT_CHECKPOINT = os.getenv(
     "MUSICBERT_DEFAULT_CHECKPOINT", 
     os.path.join(
         os.environ["SAVED_CHECKPOINTS_DIR"], 
-        "/musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt"
+        "musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt"
     )
 )
 
