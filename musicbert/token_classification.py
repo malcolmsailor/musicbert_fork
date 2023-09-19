@@ -103,6 +103,26 @@ class RobertaSequenceTaggingHead(nn.Module):
         return x
 
 
+def get_loss_weights(dictionary, weight_coef):
+    counts = []
+    n_appended_tokens = 0
+    for i in range(dictionary.nspecial, len(dictionary)):
+        word = dictionary.symbols[i]
+        if word.startswith("madeupword"):
+            n_appended_tokens = len(dictionary) - i
+            break
+        counts.append(dictionary.count[i])
+    counts = torch.tensor(counts)
+    proportions = counts / counts.sum()
+    inv_proportions = 1 - proportions
+    adjusted = len(counts) * inv_proportions
+    interpolated = (1 - weight_coef) + weight_coef * adjusted
+    out = torch.concat(
+        [torch.ones(dictionary.nspecial), interpolated, torch.ones(n_appended_tokens)]
+    )
+    return out
+
+
 @register_criterion("sequence_tagging")
 class SequenceTaggingCriterion(FairseqCriterion):
     def __init__(self, task, classification_head_name):
@@ -110,15 +130,28 @@ class SequenceTaggingCriterion(FairseqCriterion):
         self.classification_head_name = classification_head_name
         self.pad_idx = task.label_dictionary.pad()
         self.compound_token_ratio = self.task.args.compound_token_ratio
+        if self.task.args.weight_loss:
+            self.loss_weights = get_loss_weights(
+                task.label_dictionary, self.task.args.weight_loss_coef
+            )
+        else:
+            self.loss_weights = None
 
     @staticmethod
     def add_args(parser):
-        # fmt: off
-        parser.add_argument('--classification-head-name',
-                            default='sequence_tagging_head',
-                            help='name of the classification head to use')
-        parser.add_argument('--compound-token-ratio', type=int, default=1)
-        # fmt: on
+        parser.add_argument(
+            "--classification-head-name",
+            default="sequence_tagging_head",
+            help="name of the classification head to use",
+        )
+        parser.add_argument("--compound-token-ratio", type=int, default=1)
+        parser.add_argument("--weight-loss", action="store_true", default=False)
+        parser.add_argument(
+            "--weight-loss-coef",
+            type=float,
+            default=0.5,
+            help="scales loss weights where 0=no weighting and 1=weighting by token frequency",
+        )
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -149,6 +182,7 @@ class SequenceTaggingCriterion(FairseqCriterion):
             targets,
             ignore_index=self.pad_idx,
             reduction="sum",
+            weight=self.loss_weights,
         )
 
         # To get the same behavior as the original implementation we should ignore
