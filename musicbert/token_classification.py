@@ -134,8 +134,10 @@ class SequenceTaggingCriterion(FairseqCriterion):
             self.loss_weights = get_loss_weights(
                 task.label_dictionary, self.task.args.weight_loss_coef
             )
+            self.set_loss_weight_device = False
         else:
             self.loss_weights = None
+            self.set_loss_weight_device = True
 
     @staticmethod
     def add_args(parser):
@@ -175,6 +177,14 @@ class SequenceTaggingCriterion(FairseqCriterion):
         adjusted_ntokens = sample["ntokens"] // self.compound_token_ratio
         nsentences = sample["target"].size(0)
         sample_size = adjusted_ntokens - nsentences  # number of tokens without eos
+
+        if not self.set_loss_weight_device:
+            # Hack to get the device of the model
+            device = next(model.parameters()).device
+
+            assert self.loss_weights is not None
+            self.loss_weights = self.loss_weights.to(device)
+            self.set_loss_weight_device = True
 
         logits = logits.view(-1, logits.size(-1))
         loss = F.nll_loss(
