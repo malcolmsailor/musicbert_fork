@@ -13,7 +13,7 @@ conda activate newbert
 
 set -x
 
-python $(dirname "$0")/../eval_scripts/save_predictions.py \
+python /home/ms3682/code/musicbert_fork/eval_scripts/save_predictions.py \
     "${@}"
 
 set +x
