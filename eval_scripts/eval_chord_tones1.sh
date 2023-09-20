@@ -6,7 +6,7 @@ set -x
 
 python $(dirname "$0")/eval_chord_tones.py \
     --data-dir "${DATA_BIN_DIR}" \
-    --checkpoint /Volumes/Reicha/large_checkpoints/musicbert/checkpoint_last_musicbert_base.pt \
+    --checkpoint /Users/malcolm/tmp/ct_ckpt/checkpoint_best.pt \
     "${@}"
     # --arch musicbert_test
     # --arch base \

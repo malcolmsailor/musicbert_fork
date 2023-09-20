@@ -397,11 +397,13 @@ class SequenceTaggingTask(FairseqTask):
         if not hasattr(args, "max_positions"):
             # TODO: (Malcolm 2023-09-08) this will raise an attribute error
             # We just provide max positions as an arg
-            raise NotImplementedError("Provide '--max-positions'")
-            self._max_positions = (
-                args.max_source_positions,
-                args.max_target_positions,
-            )
+            self._max_positions = 8192
+            # TODO: (Malcolm 2023-09-20) restore
+            # raise NotImplementedError("Provide '--max-positions'")
+            # self._max_positions = (
+            #     args.max_source_positions,
+            #     args.max_target_positions,
+            # )
         else:
             self._max_positions = args.max_positions
         args.tokens_per_sample = self._max_positions  # tuple[int, int] ?

@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 
+import torch
 from fairseq.models.roberta import RobertaModel
 
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
@@ -23,6 +24,7 @@ def parse_args():
     parser.add_argument("--max-examples", type=int, default=None)
     parser.add_argument("--output-file", required=True)
     parser.add_argument("--compound-token-ratio", type=int, default=8)
+    parser.add_argument("--msdebug", action="store_true")
 
     args = parser.parse_args()
     return args
@@ -31,18 +33,20 @@ def parse_args():
 def main():
     args = parse_args()
     data_dir, checkpoint = args.data_dir, args.checkpoint
-    import pdb
-    import sys
-    import traceback
+    if args.msdebug:
+        import pdb
+        import sys
+        import traceback
 
-    def custom_excepthook(exc_type, exc_value, exc_traceback):
-        traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
-        pdb.post_mortem(exc_traceback)
+        def custom_excepthook(exc_type, exc_value, exc_traceback):
+            traceback.print_exception(
+                exc_type, exc_value, exc_traceback, file=sys.stdout
+            )
+            pdb.post_mortem(exc_traceback)
 
-    sys.excepthook = custom_excepthook
-    # musicbert = MusicBERTModel.from_pretrained(
+        sys.excepthook = custom_excepthook
+
     musicbert = RobertaModel.from_pretrained(
-        # TODO: (Malcolm 2023-09-08) not sure about model_name_or_path arg
         model_name_or_path=PARENT_DIR,
         checkpoint_file=checkpoint,
         data_name_or_path=data_dir,
@@ -53,7 +57,9 @@ def main():
     musicbert.task.load_dataset(args.dataset)
     dataset = musicbert.task.datasets[args.dataset]
 
-    # TODO: (Malcolm 2023-09-08) musicbert.cuda()
+    if torch.cuda.is_available():
+        musicbert.cuda()
+
     musicbert.eval()
 
     n_examples = len(dataset)
