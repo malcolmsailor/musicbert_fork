@@ -191,4 +191,7 @@ I got excited about `/Users/malcolm/google_drive/python/data_science/chord_tones
 - `--validate-interval-updates`: validate every N updates (default is 0, where we validate after every epoch; if epoch gets very long we may wish to validate more often)
 
 
-# 
+# 2023-09-19
+Got this error while debugging; is this worth investigating? How is n worker processes set?
+```/gpfs/gibbs/project/quinn/ms3682/conda_envs/newbert/lib/python3.8/site-packages/torch/utils/data/dataloader.py:560: UserWarning: This DataLoader will create 36 worker processes in total. Our suggested max number of worker in current system is 1, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.```
+This was due to an error in my Python wrapper script.
