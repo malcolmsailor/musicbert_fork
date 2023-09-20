@@ -86,7 +86,7 @@ def main():
             for line, n_tokens in zip(preds, target_lengths):
                 outf.write(" ".join(str(x) for x in line[:n_tokens].tolist()))
                 outf.write("\n")
-            breakpoint()
+
     finally:
         outf.close()
 
