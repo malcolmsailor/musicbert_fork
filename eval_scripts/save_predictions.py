@@ -70,7 +70,9 @@ def main():
 
     try:
         for i in range(0, n_examples, args.batch_size):
-            samples = [dataset[j] for j in range(i, i + args.batch_size)]
+            samples = [
+                dataset[j] for j in range(i, min(n_examples, i + args.batch_size))
+            ]
             batch = dataset.collater(samples)
             src_tokens = batch["net_input"]["src_tokens"]
 
