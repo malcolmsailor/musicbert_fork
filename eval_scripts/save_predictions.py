@@ -67,6 +67,7 @@ def main():
         n_examples = min(args.max_examples, n_examples)
 
     outf = open(args.output_file, "w")
+    label_dictionary = musicbert.task.label_dictionary
 
     try:
         for i in range(0, n_examples, args.batch_size):
@@ -86,7 +87,8 @@ def main():
                 batch["net_input"]["src_lengths"] // args.compound_token_ratio
             )
             for line, n_tokens in zip(preds, target_lengths):
-                outf.write(" ".join(str(x) for x in line[:n_tokens].tolist()))
+                pred_tokens = label_dictionary.string(line[:n_tokens])
+                outf.write(pred_tokens)
                 outf.write("\n")
 
     finally:

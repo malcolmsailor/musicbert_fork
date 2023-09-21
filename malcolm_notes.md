@@ -30,6 +30,7 @@ It seems to be because I was debugging on CPU-only. On a GPU partition it appear
 UserWarning: amp_C fused kernels unavailable, disabling multi_tensor_l2norm; you may get better perfo
 rmance by installing NVIDIA's apex library
 ```
+2023-09-20 I tried installing apex but with a reasonable amount of effort couldn't get it to actually work (still getting the same warning).
 
 # 2023-08-28
 
