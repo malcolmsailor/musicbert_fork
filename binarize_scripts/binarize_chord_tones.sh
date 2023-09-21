@@ -1,6 +1,10 @@
 
 
 DATA_RAW=$1
+
+# Trim trailing slash if present
+DATA_RAW=$(echo "$DATA_RAW" | sed 's:/*$::')
+
 if ! [[ "$DATA_RAW" =~ .*_raw$ ]]
 then
     echo First argument must be raw data path ending in _raw
