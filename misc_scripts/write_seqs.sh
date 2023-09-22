@@ -14,14 +14,14 @@ then
 fi
 
 
-if [[ -z "${WRITE_CHORD_TONES_SEQS_ENV// }" ]]
+if [[ -z "${WRITE_SEQS_ENV// }" ]]
 then
-    WRITE_CHORD_TONES_SEQS_ENV=write_chord_tones_seqs
+    WRITE_SEQS_ENV=write_chord_tones_seqs
 fi
 
-if [[ -z "${WRITE_CHORD_TONES_SEQS_FOLDER// }" ]]
+if [[ -z "${WRITE_SEQS_FOLDER// }" ]]
 then
-    WRITE_CHORD_TONES_SEQS_FOLDER="/home/ms3682/code/write_seqs"
+    WRITE_SEQS_FOLDER="/home/ms3682/code/write_seqs"
 fi
 
 if [[ -z "${MUSICBERT_ENV// }" ]]
@@ -50,18 +50,18 @@ then
     exit 1
 fi
 
-echo conda activate "${WRITE_CHORD_TONES_SEQS_ENV}"
-conda activate "${WRITE_CHORD_TONES_SEQS_ENV}"
+echo conda activate "${WRITE_SEQS_ENV}"
+conda activate "${WRITE_SEQS_ENV}"
 
 # I'm not sure if the module is installed in the env so we cd into the directory to
 #   be sure it will run
 set -e
 set -x
-cd "${WRITE_CHORD_TONES_SEQS_FOLDER}"
+cd "${WRITE_SEQS_FOLDER}"
 SRC_DATA_DIR="${INPUT_DIR}" python -m write_seqs \
     --data-settings "${DATA_SETTINGS}" --output-dir "${TEMP_DIR}" "${@:5}"
 
-cd "${WRITE_CHORD_TONES_SEQS_FOLDER}"
+cd "${WRITE_SEQS_FOLDER}"
 python scripts/to_fair_seq.py \
     --input-dir "${TEMP_DIR}" \
     --output-dir "${OUTPUT_DIR}"_raw

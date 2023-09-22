@@ -5,6 +5,7 @@
 import logging
 import math
 import os
+import warnings
 from functools import lru_cache
 from typing import List, Optional, Sequence, Tuple, Union
 
@@ -40,6 +41,8 @@ from fairseq.tasks.sentence_prediction import SentencePredictionTask
 from musicbert.freezable_roberta import FreezableRobertaEncoder
 from musicbert.token_classification import RobertaSequenceTaggingHead
 from musicbert.token_classification_multi_target import RobertaSequenceMultiTaggingHead
+
+warnings.filterwarnings("ignore", message="NVIDIA's apex library")
 
 LOGGER = logging.getLogger(__name__)
 
