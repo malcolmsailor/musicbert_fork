@@ -14,11 +14,19 @@ conda activate newbert
 set -x
 
 python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
-    -d /home/ms3682/project/datasets/chord_tones/fairseq/chord_factors_bin \
+    -d /home/ms3682/project/datasets/chord_tones/fairseq/no_susp_bin \
     -a base \
     -W chord_tones_musicbert \
     "${@}"
 
 set +x
 
+# Equivalent command for local development:
+# bash train_chord_tones.sh \
+#     -d /Users/malcolm/output/fairseq/chord_tones_seqs_bin \
+#     -a base \
+#     -W scratch \
+#     -c /Volumes/Reicha/large_checkpoints/musicbert/checkpoint_last_musicbert_base.pt \
+#     -u 50000 \
+#     -w 10000
 
