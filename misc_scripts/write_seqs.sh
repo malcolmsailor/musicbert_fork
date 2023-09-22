@@ -21,7 +21,7 @@ fi
 
 if [[ -z "${WRITE_CHORD_TONES_SEQS_FOLDER// }" ]]
 then
-    WRITE_CHORD_TONES_SEQS_FOLDER="/home/ms3682/code/write_chord_tones_seqs"
+    WRITE_CHORD_TONES_SEQS_FOLDER="/home/ms3682/code/write_seqs"
 fi
 
 if [[ -z "${MUSICBERT_ENV// }" ]]
@@ -43,6 +43,7 @@ TEMP_DIR=$(readlink -f "${TEMP_DIR}")
 OUTPUT_DIR=$(readlink -f "${3}")
 N_WORKERS="${4}"
 
+
 if [[ -d "${OUTPUT_DIR}_raw" ]]
 then
     echo Error, output_dir "${OUTPUT_DIR}_raw" exists
@@ -57,8 +58,8 @@ conda activate "${WRITE_CHORD_TONES_SEQS_ENV}"
 set -e
 set -x
 cd "${WRITE_CHORD_TONES_SEQS_FOLDER}"
-SRC_DATA_DIR="${INPUT_DIR}" python -m write_chord_tones_seqs \
-    --data-settings "${DATA_SETTINGS}" --output-dir "${TEMP_DIR}"
+SRC_DATA_DIR="${INPUT_DIR}" python -m write_seqs \
+    --data-settings "${DATA_SETTINGS}" --output-dir "${TEMP_DIR}" "${@:5}"
 
 cd "${WRITE_CHORD_TONES_SEQS_FOLDER}"
 python scripts/to_fair_seq.py \
