@@ -318,6 +318,9 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
             metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
 
+            if target_name not in TARGET_INFO["targets_to_log_by_label"]:
+                continue
+
             no_specials_mask = y_true >= n_special  # type:ignore
             confused = sklearn.metrics.confusion_matrix(
                 y_true[no_specials_mask] - n_special,
@@ -419,6 +422,13 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         parser.add_argument("--target-names", nargs="+", required=True)
         parser.add_argument("--msdebug", action="store_true")
         parser.add_argument("--freeze-layers", type=int, default=-1)
+        parser.add_argument(
+            "--targets-to-log-by-label",
+            nargs="+",
+            default=None,
+            help="provide the name of targets for which we should log f1/etc. "
+            "for each label individually",
+        )
 
     def __init__(self, args, data_dictionary, label_dictionaries):
         if args.msdebug:
@@ -460,6 +470,10 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         n_specials = tuple(n_specials_set)[0]
         TARGET_INFO["n_targets"] = self.num_targets
         TARGET_INFO["n_specials"] = n_specials
+        if args.targets_to_log_by_label is not None:
+            TARGET_INFO["targets_to_log_by_label"] = set(args.targets_to_log_by_label)
+        else:
+            TARGET_INFO["targets_to_log_by_label"] = set()
         for i, (target_name, n_classes, label_dictionary) in enumerate(
             zip(self.target_names, args.num_classes, self.label_dictionaries)
         ):
