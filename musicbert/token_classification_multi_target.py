@@ -3,6 +3,7 @@ https://github.com/facebookresearch/fairseq/pull/1709/files
 """
 
 
+import json
 import logging
 import math
 import os
@@ -419,7 +420,7 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
             default=-1,
             help="number of classes for each target (required)",
         )
-        parser.add_argument("--target-names", nargs="+", required=True)
+        parser.add_argument("--target-names", nargs="+", default=None)
         parser.add_argument("--msdebug", action="store_true")
         parser.add_argument("--freeze-layers", type=int, default=-1)
         parser.add_argument(
@@ -461,7 +462,15 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         # The code from the PR seems to assume that the task has an `args attribute`
         self.args = args
         self.num_targets = len(args.num_classes)
-        self.target_names = args.target_names
+        if args.target_names is None:
+            target_name_path = os.path.join(args.data, "target_names.json")
+            assert os.path.exists(target_name_path)
+
+            with open(target_name_path) as inf:
+                self.target_names = json.load(inf)
+        else:
+            self.target_names = args.target_names
+
         assert self.num_targets == len(self.target_names)
 
         # Put necessary contents into TARGET_INFO

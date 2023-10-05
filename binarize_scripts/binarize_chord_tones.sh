@@ -35,6 +35,11 @@ fairseq-preprocess \
     --workers $WORKERS
 set +x
 
+if [[ -e ${DATA_RAW}/target_names.json ]]
+then
+    cp ${DATA_RAW}/target_names.json ${DATA_BIN}/target_names.json
+fi
+
 if [[ ! -e ${DATA_RAW}/targets_0_train.txt ]]
 then
     # Single target
