@@ -38,8 +38,12 @@ LOGGER = logging.getLogger(__name__)
 
 PAD_IDX = 1
 
-# TODO: (Malcolm 2023-09-15) remove
-TEMP_CACHE = {}
+# To get around the fact that some methods are static, we use a global dictionary
+#   to store some attributes. Obviously this is a bit of a hack.
+
+TARGET_INFO = {}
+
+MAX_LABELS_TO_LOG_INDIVIDUALLY = 6
 
 
 class AssertSameLengthDataset(FairseqDataset):
@@ -208,10 +212,6 @@ class SequenceTaggingCriterion(FairseqCriterion):
             "ncorrect": utils.item((masked_preds == masked_targets).sum()),
             "y_true": masked_targets.detach().cpu().numpy(),
             "y_pred": masked_preds.detach().cpu().numpy(),
-            # because `reduce_metrics` is a static method we need to
-            #   include the following in the logging output. Although I wonder
-            #   what would happen if we just removed `@staticmethod`
-            "nspecial": self.task.label_dictionary.nspecial,
         }
 
         return loss, sample_size, logging_output
@@ -271,7 +271,7 @@ class SequenceTaggingCriterion(FairseqCriterion):
             balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
             metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
 
-            n_special = 4
+            n_special = TARGET_INFO["n_specials"]
             no_specials_mask = y_true >= n_special  # type:ignore
             confused = sklearn.metrics.confusion_matrix(
                 y_true[no_specials_mask] - n_special,
@@ -294,19 +294,20 @@ class SequenceTaggingCriterion(FairseqCriterion):
                     / (precision_per_class + recall_per_class)
                 )
 
-            # TODO: (Malcolm 2023-09-12) At some point don't hardcode labels
-            labels = ["yes", "no"]
 
-            for (
-                label_i,
-                label,
-            ) in enumerate(labels):
-                # specials may or may not be included in the metric arrays, but we
-                #   don't want to log them. So instead we do as follows:
-                class_i = len(precision_per_class) - len(labels) + label_i
-                metrics.log_scalar(f"precision_{label}", precision_per_class[class_i])
-                metrics.log_scalar(f"recall_{label}", recall_per_class[class_i])
-                metrics.log_scalar(f"f1_{label}", f1_per_class[class_i])
+            labels =  TARGET_INFO["vocab"]
+
+            if len(labels) <= MAX_LABELS_TO_LOG_INDIVIDUALLY:
+                for (
+                    label_i,
+                    label,
+                ) in enumerate(labels):
+                    # specials may or may not be included in the metric arrays, but we
+                    #   don't want to log them. So instead we do as follows:
+                    class_i = len(precision_per_class) - len(labels) + label_i
+                    metrics.log_scalar(f"precision_{label}", precision_per_class[class_i])
+                    metrics.log_scalar(f"recall_{label}", recall_per_class[class_i])
+                    metrics.log_scalar(f"f1_{label}", f1_per_class[class_i])
 
     @staticmethod
     def logging_outputs_can_be_summed() -> bool:
@@ -388,12 +389,13 @@ class SequenceTaggingTask(FairseqTask):
             sys.excepthook = custom_excepthook
         super().__init__(args)
         self.dictionary = data_dictionary
-        # (Malcolm 2023-09-12) for printing label names to work above these
-        #   assertions need to be correct. If we remove the staticmethod decorator
-        #   we could probably get rid of this
-        assert label_dictionary[4] == "yes"
-        assert label_dictionary[5] == "no"
+        # # (Malcolm 2023-09-12) for printing label names to work above these
+        # #   assertions need to be correct. If we remove the staticmethod decorator
+        # #   we could probably get rid of this
+        # assert label_dictionary[4] == "yes"
+        # assert label_dictionary[5] == "no"
         self._label_dictionary = label_dictionary
+
         if not hasattr(args, "max_positions"):
             # TODO: (Malcolm 2023-09-08) this will raise an attribute error
             # We just provide max positions as an arg
@@ -409,6 +411,12 @@ class SequenceTaggingTask(FairseqTask):
         args.tokens_per_sample = self._max_positions  # tuple[int, int] ?
         # The code from the PR seems to assume that the task has an `args attribute`
         self.args = args
+
+        n_specials = label_dictionary.nspecial
+        TARGET_INFO["n_specials"] = n_specials
+        TARGET_INFO["vocab"] = [
+            label_dictionary[n_specials + j] for j in range(args.num_classes)
+        ]
 
     @classmethod
     def load_dictionary(cls, args, filename, source=True):
