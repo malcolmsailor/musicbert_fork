@@ -42,7 +42,7 @@ from musicbert.freezable_roberta import FreezableRobertaEncoder
 from musicbert.token_classification import RobertaSequenceTaggingHead
 from musicbert.token_classification_multi_target import RobertaSequenceMultiTaggingHead
 
-warnings.filterwarnings("ignore", message="NVIDIA's apex library")
+warnings.filterwarnings("ignore", message=".*NVIDIA's apex library.*")
 
 LOGGER = logging.getLogger(__name__)
 
