@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -192,7 +193,7 @@ ARGS = (
     + args_to_pass_on
 )
 
-print(" ".join(["fairseq-train"] + ARGS))
+print(" ".join(["fairseq-train"] + [shlex.quote(arg) for arg in ARGS]))
 
 if not args.dryrun:
     # Counterintuitively, the command name (`fairseq_train`) needs to be the first element
