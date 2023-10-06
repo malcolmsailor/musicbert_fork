@@ -33,14 +33,14 @@ TOTAL_UPDATES = 125000
 WARMUP_UPDATES = 25000
 
 DEFAULT_CHECKPOINT = os.getenv(
-    "MUSICBERT_DEFAULT_CHECKPOINT", 
+    "MUSICBERT_DEFAULT_CHECKPOINT",
     os.path.join(
-        os.environ["SAVED_CHECKPOINTS_DIR"], 
-        "musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt"
-    )
+        os.environ["SAVED_CHECKPOINTS_DIR"],
+        "musicbert_provided_checkpoints/checkpoint_last_musicbert_base.pt",
+    ),
 )
 
-PEAK_LR=0.0005 # Borrowed from musicbert
+PEAK_LR = 0.0005  # Borrowed from musicbert
 
 # NB in musicbert scripts, UPDATE_BATCH_SIZE is only used in the UPDATE_FREQ calculation below;
 #   the actual batch size to fairseq-train is set by BATCH_SIZE arg
@@ -63,6 +63,7 @@ parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
 parser.add_argument("--lr", type=float, default=PEAK_LR)
 parser.add_argument("--checkpoint", "-c", default=DEFAULT_CHECKPOINT)
 parser.add_argument("--multitarget", action="store_true")
+parser.add_argument("--dryrun", action="store_true")
 args, args_to_pass_on = parser.parse_known_args()
 
 
@@ -193,6 +194,7 @@ ARGS = (
 
 print(" ".join(["fairseq-train"] + ARGS))
 
-# Counterintuitively, the command name (`fairseq_train`) needs to be the first element
-#   in the list of args the list of arguments
-os.execvp("fairseq-train", ["fairseq-train"] + ARGS)
+if not args.dryrun:
+    # Counterintuitively, the command name (`fairseq_train`) needs to be the first element
+    #   in the list of args the list of arguments
+    os.execvp("fairseq-train", ["fairseq-train"] + ARGS)
