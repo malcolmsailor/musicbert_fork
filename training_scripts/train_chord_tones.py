@@ -97,6 +97,7 @@ os.makedirs(os.path.dirname(SAVE_DIR), exist_ok=True)
 DATA_BIN_DIR = args.data_bin_dir
 NN_ARCH = f"musicbert_{args.architecture}"
 WANDB_PROJECT = args.wandb_project
+WANDB_FLAG = "" if WANDB_PROJECT == "scratch" else f"--wandb-project {WANDB_PROJECT}"
 
 RESTORE_FLAG = "" if not args.checkpoint else f"--restore-file {args.checkpoint}"
 
@@ -145,7 +146,7 @@ ARGS = (
             f"--user-dir {USER_DIR}",
             RESTORE_FLAG,
             f"--save-dir {SAVE_DIR}",
-            f"--wandb-project {WANDB_PROJECT}",
+            WANDB_FLAG,
             f"--task {TASK}",
             f"--arch {NN_ARCH}",
             f"--batch-size {args.batch_size}",
