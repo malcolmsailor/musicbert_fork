@@ -463,7 +463,34 @@ class MusicBERTModel(RobertaModel):
         self, name, num_classes: Sequence[int], inner_dim=None, **kwargs
     ):
         """Register a classification head."""
-        assert name not in self.classification_heads
+        # assert name not in self.classification_heads
+        if name in self.classification_heads:
+            prev_num_classes = [
+                x.out_proj.out_features
+                for x in self.classification_heads[name]._sub_heads  # type:ignore
+            ]
+            prev_inner_dim_list = [
+                x.dense.out_features
+                for x in self.classification_heads[name]._sub_heads  # type:ignore
+            ]
+            assert len(set(prev_inner_dim_list)) == 1
+            prev_inner_dim = prev_inner_dim_list[0]
+            # breakpoint()
+            # prev_num_classes = self.classification_heads[  # type:ignore
+            #     name
+            # ].out_proj.out_features  # type:ignore
+            # prev_inner_dim = self.classification_heads[  # type:ignore
+            #     name
+            # ].dense.out_features  # type:ignore
+            if num_classes != prev_num_classes or (
+                inner_dim is not None and inner_dim != prev_inner_dim
+            ):
+                LOGGER.warning(
+                    're-registering head "{}" with num_classes {} (prev: {}) '
+                    "and inner_dim {} (prev: {})".format(
+                        name, num_classes, prev_num_classes, inner_dim, prev_inner_dim
+                    )
+                )
         self.classification_heads[  # type:ignore
             name
         ] = RobertaSequenceMultiTaggingHead(

@@ -35,6 +35,7 @@ from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 from fairseq.tasks import FairseqTask, register_task
 from torch import nn
 
+import musicbert.state_dict_patch
 from musicbert.token_classification import RobertaSequenceTaggingHead
 
 LOGGER = logging.getLogger(__name__)

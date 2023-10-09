@@ -4,3 +4,4 @@ checkpoints
 wandb
 venvvars
 training_commands.txt
+predict_commands*.txt

@@ -1,7 +1,7 @@
 import argparse
+import json
 import os
 import sys
-import json
 
 import torch
 from fairseq.models.roberta import RobertaModel
@@ -33,7 +33,11 @@ def parse_args():
 
 def main():
     args = parse_args()
-    data_dir, checkpoint, output_folder = args.data_dir, args.checkpoint, args.output_folder
+    data_dir, checkpoint, output_folder = (
+        args.data_dir,
+        args.checkpoint,
+        args.output_folder,
+    )
     if args.msdebug:
         import pdb
         import sys
@@ -46,9 +50,9 @@ def main():
             pdb.post_mortem(exc_traceback)
 
         sys.excepthook = custom_excepthook
-    
+
     if os.path.exists(output_folder):
-        raise ValueError
+        raise ValueError(f"Output folder {output_folder} already exists")
 
     with open(os.path.join(data_dir, "target_names.json"), "r") as inf:
         target_names = json.load(inf)
@@ -78,11 +82,10 @@ def main():
     outfs = {}
     label_dictionaries = {}
     for i, target_name in enumerate(target_names):
-        outfs[target_name] = open(os.path.join(output_folder, f"{target_name}.json"), "w")
+        outfs[target_name] = open(
+            os.path.join(output_folder, f"{target_name}.json"), "w"
+        )
         label_dictionaries[target_name] = musicbert.task.label_dictionaries[i]
-    
-    # outf = open(args.output_file, "w")
-    # label_dictionary = musicbert.task.label_dictionary
 
     try:
         for i in range(0, n_examples, args.batch_size):
@@ -93,22 +96,27 @@ def main():
             src_tokens = batch["net_input"]["src_tokens"]
 
             # logits: batch x seq x vocab
-            logits = musicbert.predict(  # type:ignore
-                head="sequence_tagging_head", tokens=src_tokens, return_logits=True
+            all_logits = musicbert.predict(  # type:ignore
+                head="sequence_multitarget_tagging_head",
+                tokens=src_tokens,
+                return_logits=True,
             )
-            breakpoint()
 
-            preds = logits.argmax(dim=-1)
-            target_lengths = (
-                batch["net_input"]["src_lengths"] // args.compound_token_ratio
-            )
-            for line, n_tokens in zip(preds, target_lengths):
-                pred_tokens = label_dictionary.string(line[:n_tokens])
-                outf.write(pred_tokens)
-                outf.write("\n")
+            for logits, target_name in zip(all_logits, target_names):
+                preds = logits.argmax(dim=-1)
+                target_lengths = (
+                    batch["net_input"]["src_lengths"] // args.compound_token_ratio
+                )
+                for line, n_tokens in zip(preds, target_lengths):
+                    pred_tokens = label_dictionaries[target_name].string(
+                        line[:n_tokens]
+                    )
+                    outfs[target_name].write(pred_tokens)
+                    outfs[target_name].write("\n")
 
     finally:
-        outf.close()
+        for outf in outfs.values():
+            outf.close()
 
 
 if __name__ == "__main__":
