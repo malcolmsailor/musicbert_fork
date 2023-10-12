@@ -65,7 +65,7 @@ set -e
 set -x
 cd "${WRITE_SEQS_FOLDER}"
 SRC_DATA_DIR="${INPUT_DIR}" python -m write_seqs \
-    --data-settings "${DATA_SETTINGS}" --output-dir "${TEMP_DIR}" "${@:5}"
+    --data-settings "${DATA_SETTINGS}" --output-dir "${TEMP_DIR}" "${@:6}"
 
 cd "${WRITE_SEQS_FOLDER}"
 python scripts/to_fair_seq.py \
