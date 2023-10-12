@@ -8,7 +8,7 @@
 
 if [[ -z "$4" ]]; then
     echo Error: 3 positional arguments required.
-    echo Usage: bash write_seqs.sh [data_settings] [src_data_dir_or_zip] [output_dir] [n_workers]
+    echo Usage: bash write_seqs.sh [data_settings] [src_data_dir_or_zip] [output_dir] [n_workers] [-o]
     exit 1
 fi
 
@@ -36,10 +36,19 @@ TEMP_DIR=$(mktemp -d)
 TEMP_DIR=$(readlink -f "${TEMP_DIR}")
 OUTPUT_DIR=$(readlink -f "${3}")
 N_WORKERS="${4}"
+[[ "$5" == "-o" ]] && OVERWRITE=true || OVERWRITE=false
 
 if [[ -d "${OUTPUT_DIR}_raw" ]]; then
-    echo Error, output_dir "${OUTPUT_DIR}_raw" exists
-    exit 1
+    if $OVERWRITE; then
+        rm -rf "${OUTPUT_DIR}_raw"
+    else
+        echo Error, output_dir "${OUTPUT_DIR}_raw" exists
+        exit 1
+    fi
+fi
+
+if [[ -d "${OUTPUT_DIR}_bin" ]] && $OVERWRITE; then
+    rm -rf "${OUTPUT_DIR}_bin"
 fi
 
 echo conda activate "${WRITE_SEQS_ENV}"
