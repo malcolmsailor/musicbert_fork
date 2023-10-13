@@ -55,8 +55,9 @@ echo conda activate "${WRITE_SEQS_ENV}"
 conda activate "${WRITE_SEQS_ENV}"
 
 if [[ "${INPUT_DIR}" =~ .*\.zip$ ]]; then
-    echo unzip "${INPUT_DIR}"
-    INPUT_DIR="${INPUT_DIR%.zip}"
+    INPUT_DIR_TMP="${INPUT_DIR%.zip}"
+    unzip -o "${INPUT_DIR}" -d "${INPUT_DIR_TMP}"
+    INPUT_DIR="${INPUT_DIR_TMP}"
 fi
 
 # I'm not sure if the module is installed in the env so we cd into the directory to
