@@ -58,8 +58,8 @@ USER_DIR = os.path.join(SCRIPT_DIR, "../musicbert")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data-bin-dir", "-d", required=True)
-parser.add_argument("--architecture", "-a", required=True)
-parser.add_argument("--wandb-project", "-W", required=True)
+parser.add_argument("--architecture", "-a")
+parser.add_argument("--wandb-project", "-W")
 parser.add_argument("--total-updates", "-u", type=int, default=TOTAL_UPDATES)
 parser.add_argument("--warmup-updates", "-w", type=int, default=WARMUP_UPDATES)
 parser.add_argument("--update-batch-size", type=int, default=UPDATE_BATCH_SIZE)
@@ -109,6 +109,13 @@ else:
 DATA_BIN_DIR = args.data_bin_dir
 
 if not args.skip_training:
+    for arg in [args.architecture, args.wandb_project]:
+        missing_args = []
+        if arg is None:
+            missing_args.append(arg)
+        if missing_args:
+            raise ValueError(f"CLI args {missing_args} are required if training")
+
     if args.run_name:
         LOGGER.warning(f"--run-name is ignored if not skipping training")
 
