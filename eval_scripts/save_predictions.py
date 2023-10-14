@@ -66,6 +66,8 @@ def main():
     if args.max_examples is not None:
         n_examples = min(args.max_examples, n_examples)
 
+    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
+
     outf = open(args.output_file, "w")
     label_dictionary = musicbert.task.label_dictionary
 
