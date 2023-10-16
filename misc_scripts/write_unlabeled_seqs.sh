@@ -37,6 +37,10 @@ REF_DIR=$(readlink -f "${2}")
 TEMP_DIR=$(mktemp -d)/temporary_data
 TEMP_DIR=$(readlink -f "${TEMP_DIR}")
 OUTPUT_DIR=$(readlink -f "${3}")
+if [[ -z "$OUTPUT_DIR" ]]; then
+    echo "after running readlink, output directory $3 is empty; maybe you need to create the parent directory?"
+    exit 1
+fi
 N_WORKERS="${4}"
 [[ "$5" == "-o" ]] && OVERWRITE=true || OVERWRITE=false
 
@@ -68,7 +72,7 @@ python "${WRITE_SEQS_FOLDER}"/scripts/write_unlabeled_seqs.py \
     input_folder="${INPUT_DIR}" output_folder="${TEMP_DIR}" num_workers="${N_WORKERS}" \
     "${@:6}"
 
-python "${WRITE_SEQS_FOLDER}"/scripts/to_fair_seq.py \
+python "${WRITE_SEQS_FOLDER}"/scripts/to_fair_seq_unlabeled.py \
     --input-dir "${TEMP_DIR}" \
     --output-dir "${OUTPUT_DIR}"_raw
 rm -rf "${TEMP_DIR}"
