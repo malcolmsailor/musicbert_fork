@@ -32,7 +32,9 @@ module load miniconda
 
 INPUT_DIR=$(readlink -f "${1}")
 REF_DIR=$(readlink -f "${2}")
-TEMP_DIR=$(mktemp -d)
+# We need to add a subdirectory to the temporary directory because the
+#   write_unlabeled_seqs.py script expects the destination not to exist
+TEMP_DIR=$(mktemp -d)/temporary_data
 TEMP_DIR=$(readlink -f "${TEMP_DIR}")
 OUTPUT_DIR=$(readlink -f "${3}")
 N_WORKERS="${4}"
