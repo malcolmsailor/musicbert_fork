@@ -1,20 +1,26 @@
+import argparse
 from typing import Counter
 
-DICT = "/Users/malcolm/tmp/chord_seqs1/dict.input.txt"
+parser = argparse.ArgumentParser()
+parser.add_argument("dict")
+parser.add_argument("input")
+args = parser.parse_args()
+
+dict = args.dict
 
 vocab = set()
-with open(DICT) as inf:
+with open(dict) as inf:
     for line in inf:
         token, _ = line.strip().split()
         vocab.add(token)
 
-INPUT = "/Users/malcolm/tmp/chord_seqs1/midi_train.txt"
+input_ = args.input
 
 unknown_tokens = Counter()
 
 
 # (Malcolm 2023-09-12) <s> and </s> tokens are included by fairseq automatically
-with open(INPUT) as inf:
+with open(input_) as inf:
     for line in inf:
         for token in line.strip().split():
             if token not in vocab:

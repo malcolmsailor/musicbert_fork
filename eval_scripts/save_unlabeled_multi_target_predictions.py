@@ -20,6 +20,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--checkpoint", required=True)
+    parser.add_argument(
+        "--ref-dir",
+        required=True,
+        help="fairseq bin folder containing 'target_names.json' and 'label[x]/dict.txt' files",
+    )
     parser.add_argument("--dataset", default="test", choices=("test", "valid", "train"))
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--max-examples", type=int, default=None)
@@ -33,8 +38,9 @@ def parse_args():
 
 def main():
     args = parse_args()
-    data_dir, checkpoint, output_folder = (
+    data_dir, ref_dir, checkpoint, output_folder = (
         args.data_dir,
+        args.ref_dir,
         args.checkpoint,
         args.output_folder,
     )

@@ -254,19 +254,30 @@ if not args.skip_predict:
             PREDICTIONS_SCRIPT = os.path.join(
                 SCRIPT_DIR, "..", "eval_scripts", "save_multi_target_predictions.py"
             )
+            PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, "test")
         else:
             PREDICTIONS_SCRIPT = os.path.join(
                 SCRIPT_DIR, "..", "eval_scripts", "save_predictions.py"
             )
+            # extension?
+            PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, "test.txt")
 
         PREDICT_ARGS = " ".join(
             [
                 PREDICTIONS_SCRIPT,
                 f"--data-dir {DATA_BIN_DIR}",
                 f"--checkpoint {BEST_CHECKPOINT_PATH}",
-                f"--output-{'folder' if args.multitarget else 'file'} {PREDICTIONS_PATH}",
+                f"--output-{'folder' if args.multitarget else 'file'} {PREDICTIONS_OUTPUT}",
             ]
         ).split()
         print(" ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS]))
         if not args.dryrun:
             os.execvp("python", ["python"] + PREDICT_ARGS)
+
+        # Copy the metadata file into the predictions folder too
+        assert DATA_BIN_DIR.endswith("_bin")
+        DATA_RAW_DIR = DATA_BIN_DIR[:-4] + "_raw"
+        shutil.copy(
+            os.path.join(DATA_RAW_DIR, "metadata_test.txt"),
+            os.path.join(PREDICTIONS_PATH, "metadata_test.txt"),
+        )
