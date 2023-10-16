@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import sys
-
+import shutil
 import torch
 from fairseq.models.roberta import RobertaModel
 
@@ -18,7 +18,7 @@ USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", required=True)
+    parser.add_argument("--data-dir", required=True, help="assumed to end in '_bin' and have an equivalent ending in '_raw' that contains 'metadata_test.txt'")
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--dataset", default="test", choices=("test", "valid", "train"))
     parser.add_argument("--batch-size", type=int, default=4)
@@ -53,6 +53,10 @@ def main():
 
     if os.path.exists(output_folder):
         raise ValueError(f"Output folder {output_folder} already exists")
+    
+    assert data_dir.rstrip(os.path.sep).endswith("_bin")
+    raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
+    assert os.path.exists(raw_data_dir)
 
     with open(os.path.join(data_dir, "target_names.json"), "r") as inf:
         target_names = json.load(inf)
@@ -78,12 +82,13 @@ def main():
         n_examples = min(args.max_examples, n_examples)
 
     os.makedirs(output_folder, exist_ok=False)
+    os.makedirs(os.path.join(output_folder, "predictions"), exist_ok=False)
 
     outfs = {}
     label_dictionaries = {}
     for i, target_name in enumerate(target_names):
         outfs[target_name] = open(
-            os.path.join(output_folder, f"{target_name}.txt"), "w"
+            os.path.join(output_folder, "predictions", f"{target_name}.txt"), "w"
         )
         label_dictionaries[target_name] = musicbert.task.label_dictionaries[i]
 
@@ -117,6 +122,12 @@ def main():
     finally:
         for outf in outfs.values():
             outf.close()
+    
+    shutil.copy(
+        os.path.join(raw_data_dir, "metadata_test.txt"),
+        os.path.join(output_folder, "metadata_test.txt"),
+    )
+
 
 
 if __name__ == "__main__":

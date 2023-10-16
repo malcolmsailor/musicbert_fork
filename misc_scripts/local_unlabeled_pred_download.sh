@@ -3,7 +3,7 @@
 run_name=$1
 
 if [[ -z $run_name ]]; then
-    echo 'Usage: bash local_upload.sh [run_name]'
+    echo 'Usage: bash local_unlabeled_pred_download.sh [run_name]'
     exit 1
 fi
 
