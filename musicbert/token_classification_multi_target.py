@@ -269,6 +269,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             metrics.log_scalar(f"balanced_accuracy", balanced_accuracy)
 
         n_special = TARGET_INFO["n_specials"]
+
         for target_i in range(n_targets):
             if not (
                 len(logging_outputs) > 0 and f"y_pred_{target_i}" in logging_outputs[0]
@@ -322,7 +323,8 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
 
             if target_name not in TARGET_INFO["targets_to_log_by_label"]:
                 continue
-
+            # (Malcolm 2023-10-16) we can use sklearn.metrics.precision_recall_fscore_support
+            #   with average=None to get the results per label instead
             no_specials_mask = y_true >= n_special  # type:ignore
             confused = sklearn.metrics.confusion_matrix(
                 y_true[no_specials_mask] - n_special,
@@ -532,76 +534,6 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
             args, data_dict, label_dicts  # type:ignore
         )
 
-    #     def print_examples(
-    #         self,
-    #         epoch,
-    #         model: nn.Module,
-    #         split: Literal["train", "valid"],
-    #         indices: Sequence[int],
-    #         max_tokens_to_print=16,
-    #         token_length=1,
-    #     ):
-    #         model_state = model.training
-    #         model.eval()
-    #         dataset = self.datasets[split]
-    #         samples = [dataset[i] for i in indices]
-    #         batch = dataset.collater(samples)
-
-    #         # Hack to get the device of the model
-    #         device = next(model.parameters()).device
-
-    #         # Move input to model device
-    #         net_input = {k: v.to(device) for k, v in batch["net_input"].items()}
-
-    #         logits, _ = model(
-    #             **net_input,
-    #             features_only=True,
-    #             classification_head_name="sequence_tagging_head",
-    #         )
-    #         logits = logits.to("cpu")
-    #         preds = logits.argmax(dim=-1)
-    #         total_correct = 0
-    #         total = 0
-    #         for i, (pred, target) in enumerate(zip(preds, batch["target"])):
-    #             # Ignore padding/bos/eos
-    #             valid_mask = target >= 0
-    #             pred = pred[valid_mask]
-    #             target = target[valid_mask]
-    #             total += valid_mask.sum()
-    #             total_correct += (pred == target).sum()
-
-    #             #
-    #             pred = pred[:max_tokens_to_print]
-    #             target = target[:max_tokens_to_print]
-
-    #             # We need to adjust for the specials at the beginning
-    #             #   of the dictionary
-    #             # pred += self.label_dictionary.nspecial
-    #             # target += self.label_dictionary.nspecial
-
-    #             target_tokens = self.label_dictionary.string(target)
-    #             pred_tokens = self.label_dictionary.string(pred)
-    #             target_tokens = [
-    #                 f"{x[:token_length]:<{token_length}}" for x in target_tokens.split()
-    #             ]
-    #             pred_tokens = [
-    #                 f"{x[:token_length]:<{token_length}}" for x in pred_tokens.split()
-    #             ]
-    #             target_tokens = " ".join(target_tokens)
-    #             pred_tokens = " ".join(pred_tokens)
-
-    #             LOGGER.info(f"Epoch {epoch} {split} target     {i + 1}: {target_tokens}")
-    #             LOGGER.info(f"Epoch {epoch} {split} prediction {i + 1}: {pred_tokens}")
-
-    #         model.train(model_state)
-
-    # TODO: (Malcolm 2023-09-15) implement
-    #     def begin_valid_epoch(self, epoch, model):
-    #         """As a sanity check, print out example outputs for training and validation sets."""
-
-    #         self.print_examples(epoch, model, "train", [0, 1, 2, 3])
-    #         self.print_examples(epoch, model, "valid", [0, 1, 2, 3])
-
     def load_dataset(self, split, combine=False, **kwargs):
         """Load a given dataset split (e.g., train, valid, test)."""
 
@@ -617,17 +549,25 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
                 self.args.dataset_impl,  # type:ignore
                 combine=combine,
             )
-            assert dataset is not None, "could not find dataset: {}".format(
-                get_path(type, split)
-            )
+
             return dataset
 
         src_tokens = make_dataset("input0", self.source_dictionary)
+        assert src_tokens is not None, "could not find dataset: {}".format(
+            get_path("input0", split)
+        )
 
         dataset = {}
         label_datasets = []
         for i, label_dictionary in enumerate(self.label_dictionaries):
             label_dataset = make_dataset(f"label{i}", label_dictionary)
+            if label_dataset is None:
+                expected_path = get_path(f"label{i}", split)
+                LOGGER.warning(
+                    f"could not find dataset: {expected_path}. If predicting "
+                    "unlabeled data, this is expected."
+                )
+                continue
 
             # (Malcolm 2023-09-08) The code that I based this off of includes the
             #   following commented out lines so that we only predict items in the

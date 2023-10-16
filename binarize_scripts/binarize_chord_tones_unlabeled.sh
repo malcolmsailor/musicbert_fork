@@ -8,6 +8,13 @@ if ! [[ "$DATA_RAW" =~ .*_raw$ ]]; then
     exit 1
 fi
 
+REF_FOLDER=$2
+
+if [[ -z $2 ]]; then
+    echo "Usage binarize_chord_tones_unlabeled.sh [DATA_RAW] [REF_FOLDER] <NUM_WORKERS>"
+    exit 1
+fi
+
 DATA_BIN=${DATA_RAW%_raw}_bin
 
 [[ -d "${DATA_BIN}" ]] && {
@@ -15,7 +22,7 @@ DATA_BIN=${DATA_RAW%_raw}_bin
     exit 1
 }
 
-WORKERS=$2
+WORKERS=$3
 if [[ -z "${WORKERS}" ]]; then
     WORKERS=24
 fi
@@ -29,4 +36,14 @@ fairseq-preprocess \
     --destdir ${DATA_BIN}/input0 \
     --srcdict ${DATA_RAW}/dict.input.txt \
     --workers $WORKERS
+
+if [[ -e ${REF_FOLDER}/target_names.json ]]; then
+    cp ${REF_FOLDER}/target_names.json ${DATA_BIN}/target_names.json
+fi
+
+for label in "${REF_FOLDER}"/label*; do
+    new_label_dir="${DATA_BIN}/$(basename $label)"
+    mkdir "${new_label_dir}"
+    cp "${label}"/dict.txt "${new_label_dir}"/dict.txt
+done
 set +x
