@@ -103,7 +103,6 @@ else:
         PREDICTIONS_DIR, "musicbert_fork", str(round(time.time()))
     )
 
-    # TODO: (Malcolm 2023-10-14) verify what CPUS_ON_NODE should be
     CPUS_ON_NODE = os.cpu_count()
 
 DATA_BIN_DIR = args.data_bin_dir
