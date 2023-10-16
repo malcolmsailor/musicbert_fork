@@ -65,7 +65,8 @@ fi
 set -e
 set -x
 python "${WRITE_SEQS_FOLDER}"/scripts/write_unlabeled_seqs.py \
-    input_folder="${INPUT_DIR}" output_folder="${TEMP_DIR}" num_workers="${N_WORKERS}"
+    input_folder="${INPUT_DIR}" output_folder="${TEMP_DIR}" num_workers="${N_WORKERS}" \
+    "${@:6}"
 
 python "${WRITE_SEQS_FOLDER}"/scripts/to_fair_seq.py \
     --input-dir "${TEMP_DIR}" \
