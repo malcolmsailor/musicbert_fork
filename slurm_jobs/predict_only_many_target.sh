@@ -16,6 +16,14 @@ fi
 RUN_NAME="$1"
 DATA_DIR="$2"
 
+module load miniconda
+conda activate newbert
+
+set -x
+
+
 python training_scripts/train_chord_tones.py \
     -d "${DATA_DIR}" \
     --multitarget --skip-training --run-name "${RUN_NAME}"
+
+set +x
