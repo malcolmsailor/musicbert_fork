@@ -118,7 +118,8 @@ if not args.skip_training:
     if args.run_name:
         LOGGER.warning(f"--run-name is ignored if not skipping training")
 
-    os.makedirs(os.path.dirname(SAVE_DIR), exist_ok=True)
+    if not args.dryrun:
+        os.makedirs(os.path.dirname(SAVE_DIR), exist_ok=True)
 
     NN_ARCH = f"musicbert_{args.architecture}"
     WANDB_PROJECT = args.wandb_project
@@ -280,3 +281,5 @@ if not args.skip_predict:
             os.path.join(DATA_RAW_DIR, "metadata_test.txt"),
             os.path.join(PREDICTIONS_PATH, "metadata_test.txt"),
         )
+    else:
+        raise FileNotFoundError(BEST_CHECKPOINT_PATH)
