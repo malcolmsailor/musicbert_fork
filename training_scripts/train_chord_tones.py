@@ -65,6 +65,7 @@ parser.add_argument("--warmup-updates", "-w", type=int, default=WARMUP_UPDATES)
 parser.add_argument("--update-batch-size", type=int, default=UPDATE_BATCH_SIZE)
 parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
 parser.add_argument("--lr", type=float, default=PEAK_LR)
+parser.add_argument("--lr-scheduler", type=float, default="polynomial_decay")
 parser.add_argument("--checkpoint", "-c", default=DEFAULT_CHECKPOINT)
 parser.add_argument("--multitarget", action="store_true")
 parser.add_argument("--dryrun", action="store_true")
@@ -201,7 +202,7 @@ if not args.skip_training:
                 "--adam-betas (0.9,0.98)",
                 "--adam-eps 1e-6",
                 "--clip-norm 0.0",
-                "--lr-scheduler polynomial_decay",
+                f"--lr-scheduler {args.lr_scheduler}",
                 f"--lr {args.lr}",
                 "--log-format simple",
                 f"--warmup-updates {args.warmup_updates}",
