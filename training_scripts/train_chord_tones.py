@@ -79,7 +79,6 @@ args, args_to_pass_on = parser.parse_known_args()
 
 TOKENS_PER_SAMPLE = 8192
 
-
 UPDATE_FREQ_DENOM = max(N_GPU_LOCAL, 1)
 UPDATE_FREQ = min(args.update_batch_size // (args.batch_size * UPDATE_FREQ_DENOM), 1)
 
@@ -205,9 +204,21 @@ if not args.skip_training:
                 f"--lr-scheduler {args.lr_scheduler}",
                 f"--lr {args.lr}",
                 "--log-format simple",
-                f"--warmup-updates {args.warmup_updates}",
-                f"--total-num-update {args.total_updates}",
-                f"--max-update {args.total_updates}",
+                # tri_stage doesn't support warmup updates
+                (
+                    f"--warmup-updates {args.warmup_updates} "
+                    if args.lr_scheduler != "tri_stage"
+                    else ""
+                )
+                +
+                # (Malcolm 2023-10-26) --total-num-update
+                #   is only used by the polynomial decay lr scheduler
+                (
+                    f"--total-num-update {args.total_updates} "
+                    if args.lr_scheduler == "polynomial_decay"
+                    else ""
+                )
+                + f"--max-update {args.total_updates}",
                 "--no-epoch-checkpoints",
                 "--find-unused-parameters",
                 # TODO: (Malcolm 2023-08-29) update best checkpoint metric (f1?)
