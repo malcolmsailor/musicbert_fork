@@ -9,6 +9,7 @@ import sys
 import time
 from itertools import count
 
+logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
@@ -242,7 +243,7 @@ if not args.skip_training:
         + args_to_pass_on
     )
 
-    print(" ".join(["fairseq-train"] + [shlex.quote(arg) for arg in ARGS]))
+    LOGGER.info(" ".join(["fairseq-train"] + [shlex.quote(arg) for arg in ARGS]))
 
     if not args.dryrun:
         # Counterintuitively, the command name (`fairseq_train`) needs to be the first element
@@ -282,7 +283,7 @@ if not args.skip_predict:
                 f"--output-{'folder' if args.multitarget else 'file'} {PREDICTIONS_OUTPUT}",
             ]
         ).split()
-        print(" ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS]))
+        LOGGER.info(" ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS]))
         if not args.dryrun:
             os.execvp("python", ["python"] + PREDICT_ARGS)
 
