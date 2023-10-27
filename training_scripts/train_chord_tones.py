@@ -268,6 +268,11 @@ else:
                 "--no-last-checkpoints",
                 "--no-epoch-checkpoints",
                 "--log-interval 128",
+                (
+                    f"--total-num-update 1 "
+                    if args.lr_scheduler == "polynomial_decay"
+                    else ""
+                )
                 "--max-update 1",
             ]
         ).split()
