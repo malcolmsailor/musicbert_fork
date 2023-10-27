@@ -56,7 +56,7 @@ def upgrade_state_dict_named(self, state_dict, name):
         load_checkpoint_heads = getattr(self.args, "load_checkpoint_heads", False)
 
         if multitarget_head:
-            assert load_checkpoint_heads
+            assert load_checkpoint_heads, "--load-checkpoint-heads is required"
             if head_name not in classes_per_target:
                 classes_per_target[head_name] = num_classes
             assert inner_dim == self.args.encoder_embed_dim

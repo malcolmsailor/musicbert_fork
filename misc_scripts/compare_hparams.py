@@ -7,6 +7,23 @@ import wandb.apis
 import wandb
 
 
+def limit_json_indent_depth(json_string, max_depth):
+    # This function from GPT4 doesn't work perfectly but good enough for now I think
+    output_lines = []
+    current_depth = 0
+    for line in json_string.splitlines():
+        stripped_line = line.strip()
+        if stripped_line.endswith("{") or stripped_line.endswith("["):
+            current_depth += 1
+        if current_depth <= max_depth:
+            output_lines.append(line)
+        else:
+            output_lines[-1] = output_lines[-1].rstrip() + stripped_line + " "
+        if stripped_line.startswith("}") or stripped_line.startswith("]"):
+            current_depth -= 1
+    return "\n".join(output_lines)
+
+
 # def get_config(api, project_name, run_name):
 #     run = api.run(f"{project_name}/{run_name}")
 #     config = run.config
@@ -15,6 +32,7 @@ import wandb
 def get_config(run):
     config = run.config
     config_str = json.dumps(config, indent=2)
+    config_str = limit_json_indent_depth(config_str, max_depth=2)
     return config_str
 
 

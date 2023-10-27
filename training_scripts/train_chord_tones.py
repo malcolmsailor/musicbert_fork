@@ -71,6 +71,7 @@ parser.add_argument("--checkpoint", "-c", default=DEFAULT_CHECKPOINT)
 parser.add_argument("--multitarget", action="store_true")
 parser.add_argument("--dryrun", action="store_true")
 parser.add_argument("--skip-training", action="store_true")
+parser.add_argument("--skip-test-metrics", action="store_true")
 parser.add_argument("--skip-predict", action="store_true")
 parser.add_argument(
     "--run-name", type=str, help="required if skip-training, otherwise ignored"
@@ -108,7 +109,10 @@ else:
 
 DATA_BIN_DIR = args.data_bin_dir
 
-if not args.skip_training:
+if args.skip_training and args.skip_test_mtrics:
+    LOGGER.info("found --skip-training flag, skipping training")
+    LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
+else:
     for arg in [args.architecture, args.wandb_project]:
         missing_args = []
         if arg is None:
@@ -175,7 +179,7 @@ if not args.skip_training:
         "multitarget_sequence_tagging" if args.multitarget else "sequence_tagging"
     )
 
-    ARGS = (
+    SHARED_ARGS = (
         " ".join(
             [
                 DATA_BIN_DIR,
@@ -202,25 +206,7 @@ if not args.skip_training:
                 "--adam-betas (0.9,0.98)",
                 "--adam-eps 1e-6",
                 "--clip-norm 0.0",
-                f"--lr-scheduler {args.lr_scheduler}",
-                f"--lr {args.lr}",
                 "--log-format simple",
-                # tri_stage doesn't support warmup updates
-                (
-                    f"--warmup-updates {args.warmup_updates} "
-                    if args.lr_scheduler != "tri_stage"
-                    else ""
-                )
-                +
-                # (Malcolm 2023-10-26) --total-num-update
-                #   is only used by the polynomial decay lr scheduler
-                (
-                    f"--total-num-update {args.total_updates} "
-                    if args.lr_scheduler == "polynomial_decay"
-                    else ""
-                )
-                + f"--max-update {args.total_updates}",
-                "--no-epoch-checkpoints",
                 "--find-unused-parameters",
                 # TODO: (Malcolm 2023-08-29) update best checkpoint metric (f1?)
                 "--best-checkpoint-metric accuracy",
@@ -243,14 +229,83 @@ if not args.skip_training:
         + args_to_pass_on
     )
 
-    LOGGER.info(" ".join(["fairseq-train"] + [shlex.quote(arg) for arg in ARGS]))
+    TRAIN_ARGS = (
+        SHARED_ARGS
+        + " ".join(
+            [  # tri_stage doesn't support warmup updates
+                (
+                    f"--warmup-updates {args.warmup_updates} "
+                    if args.lr_scheduler != "tri_stage"
+                    else ""
+                )
+                +
+                # (Malcolm 2023-10-26) --total-num-update
+                #   is only used by the polynomial decay lr scheduler
+                (
+                    f"--total-num-update {args.total_updates} "
+                    if args.lr_scheduler == "polynomial_decay"
+                    else ""
+                )
+                + f"--max-update {args.total_updates}",
+                "--no-epoch-checkpoints",
+                f"--lr-scheduler {args.lr_scheduler}",
+                f"--lr {args.lr}",
+            ]
+        ).split()
+    )
+    TEST_ARGS = (
+        SHARED_ARGS
+        + " ".join(
+            [
+                "--valid-subset test",
+                # I'm not entirely sure why, but --load-checkpoint-heads seems to
+                #   be necessary here but not elsewhere
+                "--load-checkpoint-heads",
+                "--max-epoch 0",
+                # For whatever reason, --no-save doesn't seem to actually prevent
+                #   saving checkpoints, so we also provide the other flags
+                "--no-save",
+                "--no-last-checkpoints",
+                "--no-epoch-checkpoints",
+                "--log-interval 128",
+                "--max-update 1",
+                "--lr-scheduler fixed",
+            ]
+        ).split()
+    )
 
-    if not args.dryrun:
-        # Counterintuitively, the command name (`fairseq_train`) needs to be the first element
-        #   in the the list of arguments
-        os.execvp("fairseq-train", ["fairseq-train"] + ARGS)
+    if args.skip_training:
+        LOGGER.info("found --skip-training flag, skipping training")
+    else:
+        LOGGER.info(
+            " ".join(["fairseq-train"] + [shlex.quote(arg) for arg in TRAIN_ARGS])
+        )
+        if not args.dryrun:
+            # (Malcolm 2023-10-27) There must have been some reason why I was using
+            #   "execvp" instead of subprocess originally but I'm no longer sure
+            #   what it was and, importantly, it overrides this process which means
+            #   that exceution doesn't continue.
+            # Counterintuitively, the command name (`fairseq_train`) needs to be the first element
+            #   in the the list of arguments
+            # os.execvp("fairseq-train", ["fairseq-train"] + TRAIN_ARGS)
+            subprocess.run(["fairseq-train"] + TRAIN_ARGS, check=True)
 
-if not args.skip_predict:
+    if args.skip_test_metrics:
+        LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
+    else:
+        LOGGER.info(
+            " ".join(["fairseq-train"] + [shlex.quote(arg) for arg in TEST_ARGS])
+        )
+        if not args.dryrun:
+            # Counterintuitively, the command name (`fairseq_train`) needs to be the first element
+            #   in the the list of arguments
+            # os.execvp("fairseq-train", ["fairseq-train"] + TEST_ARGS)
+            subprocess.run(["fairseq-train"] + TEST_ARGS, check=True)
+
+
+if args.skip_predict:
+    LOGGER.info("found --skip-predict flag, skipping prediction")
+else:
     if args.skip_training:
         if not args.run_name:
             raise ValueError(f"--run-name is required if --skip-training")
@@ -285,7 +340,8 @@ if not args.skip_predict:
         ).split()
         LOGGER.info(" ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS]))
         if not args.dryrun:
-            os.execvp("python", ["python"] + PREDICT_ARGS)
+            # os.execvp("python", ["python"] + PREDICT_ARGS)
+            subprocess.run(["python"] + PREDICT_ARGS, check=True)
 
         # Copy the metadata file into the predictions folder too
         assert DATA_BIN_DIR.endswith("_bin")
@@ -295,4 +351,5 @@ if not args.skip_predict:
             os.path.join(PREDICTIONS_PATH, "metadata_test.txt"),
         )
     else:
+        LOGGER.info(f"Didn't find {BEST_CHECKPOINT_PATH}")
         raise FileNotFoundError(BEST_CHECKPOINT_PATH)
