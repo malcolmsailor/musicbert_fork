@@ -273,7 +273,7 @@ else:
                     if args.lr_scheduler == "polynomial_decay"
                     else ""
                 )
-                "--max-update 1",
+                + "--max-update 1",
             ]
         ).split()
     )
