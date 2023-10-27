@@ -224,6 +224,8 @@ else:
                 # musicbert sets num workers to 0 for unknown reasons
                 # TODO: (Malcolm 2023-08-29) test number of workers
                 f"--num-workers {CPUS_ON_NODE}",
+                f"--lr-scheduler {args.lr_scheduler}",
+                f"--lr {args.lr}",
             ]
         ).split()
         + args_to_pass_on
@@ -248,8 +250,6 @@ else:
                 )
                 + f"--max-update {args.total_updates}",
                 "--no-epoch-checkpoints",
-                f"--lr-scheduler {args.lr_scheduler}",
-                f"--lr {args.lr}",
             ]
         ).split()
     )
@@ -269,7 +269,6 @@ else:
                 "--no-epoch-checkpoints",
                 "--log-interval 128",
                 "--max-update 1",
-                "--lr-scheduler fixed",
             ]
         ).split()
     )
