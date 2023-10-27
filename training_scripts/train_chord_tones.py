@@ -109,7 +109,7 @@ else:
 
 DATA_BIN_DIR = args.data_bin_dir
 
-if args.skip_training and args.skip_test_mtrics:
+if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-training flag, skipping training")
     LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
 else:
