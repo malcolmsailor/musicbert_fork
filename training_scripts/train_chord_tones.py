@@ -254,7 +254,6 @@ else:
             ]
         ).split()
     )
-    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", args.run_name)
     BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
     TEST_ARGS = (
         SHARED_ARGS
