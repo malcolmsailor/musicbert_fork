@@ -120,7 +120,7 @@ else:
         if missing_args:
             raise ValueError(f"CLI args {missing_args} are required if training")
 
-    if args.run_name:
+    if args.run_name and not args.skip_training:
         LOGGER.warning(f"--run-name is ignored if not skipping training")
 
     if not args.dryrun:
@@ -254,12 +254,15 @@ else:
             ]
         ).split()
     )
+    if args.skip_training:
+        SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", args.run_name)
     BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
     TEST_ARGS = (
         SHARED_ARGS
         + " ".join(
             [
                 f"--restore-file {BEST_CHECKPOINT_PATH}",
+                f"--save-dir {SAVE_DIR}",
                 "--valid-subset test",
                 # I'm not entirely sure why, but --load-checkpoint-heads seems to
                 #   be necessary here but not elsewhere
