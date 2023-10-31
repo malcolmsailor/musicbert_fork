@@ -204,3 +204,18 @@ Supported lr schedulers:
 - polynomial_decay
 - inverse_sqrt
 - tri_stage
+
+
+# 2023-10-31
+
+Note to self: I urgently need to keep better notes on my training runs
+
+I think that 29309056 was including the synthetic data in the validation set, hence the elevated metrics.
+Judging by `With RNCollage chorales 1`, synthetic data makes some tasks worse and others better; overall F1 looks like a wash. I should pursue this question further.
+- 28000971: Attempt to reproduce 27153178
+- 27979979: sqrt**-1
+- 27979749: Cosine 3-cycle
+- 27979142: Cosine 1 cycle
+- 27979097: Polynomial decay **1
+- 27979103: Polynomial decay **2
+- 27978498: Three-stage

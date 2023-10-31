@@ -185,8 +185,6 @@ else:
                 DATA_BIN_DIR,
                 CPU_FLAG,
                 f"--user-dir {USER_DIR}",
-                RESTORE_FLAG,
-                f"--save-dir {SAVE_DIR}",
                 WANDB_FLAG,
                 f"--task {TASK}",
                 f"--arch {NN_ARCH}",
@@ -234,7 +232,10 @@ else:
     TRAIN_ARGS = (
         SHARED_ARGS
         + " ".join(
-            [  # tri_stage doesn't support warmup updates
+            [
+                RESTORE_FLAG,
+                f"--save-dir {SAVE_DIR}",
+                # tri_stage doesn't support warmup updates
                 (
                     f"--warmup-updates {args.warmup_updates} "
                     if args.lr_scheduler != "tri_stage"
@@ -253,10 +254,13 @@ else:
             ]
         ).split()
     )
+    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", args.run_name)
+    BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
     TEST_ARGS = (
         SHARED_ARGS
         + " ".join(
             [
+                f"--restore-file {BEST_CHECKPOINT_PATH}",
                 "--valid-subset test",
                 # I'm not entirely sure why, but --load-checkpoint-heads seems to
                 #   be necessary here but not elsewhere
