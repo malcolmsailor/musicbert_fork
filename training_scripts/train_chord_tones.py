@@ -79,6 +79,7 @@ parser.add_argument("--skip-predict", action="store_true")
 parser.add_argument(
     "--run-name", type=str, help="required if skip-training, otherwise ignored"
 )
+parser.add_argument("--num-sample-inputs", type=int, default=4)
 args, args_to_pass_on = parser.parse_known_args()
 
 
@@ -89,6 +90,7 @@ UPDATE_FREQ = min(args.update_batch_size // (args.batch_size * UPDATE_FREQ_DENOM
 
 NEW_CHECKPOINTS_DIR = os.environ["NEW_CHECKPOINTS_DIR"]
 PREDICTIONS_DIR = os.environ["SAVED_PREDICTIONS_DIR"]
+EXAMPLE_INPUTS_DIR = os.environ["EXAMPLE_INPUTS_DIR"]
 
 SLURM_ID = os.getenv("SLURM_JOB_ID", None)
 
@@ -99,6 +101,7 @@ if SLURM_ID is not None:
     #   rather than just those allocated to our job
     CPUS_ON_NODE = os.getenv("SLURM_CPUS_ON_NODE", 1)
     PREDICTIONS_PATH = os.path.join(PREDICTIONS_DIR, "musicbert_fork", SLURM_ID)
+    EXAMPLE_INPUTS_PATH = os.path.join(EXAMPLE_INPUTS_DIR, "musicbert_fork", SLURM_ID)
 else:
     # We're not running a Slurm job
     SAVE_DIR = os.path.join(
@@ -106,6 +109,9 @@ else:
     )
     PREDICTIONS_PATH = os.path.join(
         PREDICTIONS_DIR, "musicbert_fork", str(round(time.time()))
+    )
+    EXAMPLE_INPUTS_PATH = os.path.join(
+        EXAMPLE_INPUTS_DIR, "musicbert_fork", str(round(time.time()))
     )
 
     CPUS_ON_NODE = os.cpu_count()
@@ -116,11 +122,11 @@ if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-training flag, skipping training")
     LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
 else:
+    missing_args = []
     for arg, arg_name in [
         (args.architecture, "--architecture"),
         (args.wandb_project, "--wandb-project"),
     ]:
-        missing_args = []
         if arg is None:
             missing_args.append(arg_name)
     if missing_args:
@@ -230,6 +236,8 @@ else:
                 f"--num-workers {CPUS_ON_NODE}",
                 f"--lr-scheduler {args.lr_scheduler}",
                 f"--lr {args.lr}",
+                f"--example-network-inputs-to-save {args.num_sample_inputs}",
+                f"--example-network-inputs-path {EXAMPLE_INPUTS_PATH}",
             ]
         ).split()
         + args_to_pass_on
