@@ -123,8 +123,8 @@ else:
         missing_args = []
         if arg is None:
             missing_args.append(arg_name)
-        if missing_args:
-            raise ValueError(f"CLI args {missing_args} are required if training")
+    if missing_args:
+        raise ValueError(f"CLI args {missing_args} are required if training")
 
     if args.run_name and not args.skip_training:
         LOGGER.warning(f"--run-name is ignored if not skipping training")

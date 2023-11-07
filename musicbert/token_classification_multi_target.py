@@ -113,11 +113,14 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         self.classification_head_name = classification_head_name
         self.pad_idx = task.label_dictionaries[0].pad()
         self.compound_token_ratio = self.task.args.compound_token_ratio
-        self.remaining_inputs_to_save = max(0, self.task.args.example_network_inputs_to_save)
+        self.remaining_inputs_to_save = max(
+            0, self.task.args.example_network_inputs_to_save
+        )
         self.example_network_inputs_path = self.task.args.example_network_inputs_path
         if self.remaining_inputs_to_save:
-            assert self.example_network_inputs_path is not None, "must provide --example-network-inputs-path if --example-network-inputs-to-save > 0"
-
+            assert (
+                self.example_network_inputs_path is not None
+            ), "must provide --example-network-inputs-path if --example-network-inputs-to-save > 0"
 
     @staticmethod
     def add_args(parser):
@@ -129,13 +132,22 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
         parser.add_argument('--example-network-inputs-path', type=str, default=None)
         # fmt: on
-    
+
     def save_inputs(self, sample):
-        folder = os.path.join(self.example_network_inputs_path, f"{self.remaining_inputs_to_save}")
+        def _save(key, tensor_or_dict):
+            if isinstance(tensor_or_dict, dict):
+                for sub_key, sub_val in tensor_or_dict.items():
+                    _save(f"{key}_{sub_key}", sub_val)
+            else:
+                path = os.path.join(folder, f"{key}.npy")
+                np.save(path, tensor_or_dict.detach().cpu().numpy())
+
+        folder = os.path.join(
+            self.example_network_inputs_path, f"{self.remaining_inputs_to_save}"
+        )
         os.makedirs(folder, exist_ok=True)
         for key, tensor in sample.items():
-            path = os.path.join(folder, f"{key}.npy")
-            np.save(path, tensor.detach().cpu().numpy())
+            _save(key, tensor)
         self.remaining_inputs_to_save -= 1
 
     def forward(self, model, sample, reduce=True):
