@@ -129,6 +129,14 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
         parser.add_argument('--example-network-inputs-path', type=str, default=None)
         # fmt: on
+    
+    def save_inputs(self, sample):
+        folder = os.path.join(self.example_network_inputs_path, f"{self.remaining_inputs_to_save}")
+        os.makedirs(folder, exist_ok=True)
+        for key, tensor in sample.items():
+            path = os.path.join(folder, f"{key}.npy")
+            np.save(path, tensor.detach().cpu().numpy())
+        self.remaining_inputs_to_save -= 1
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -141,6 +149,9 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             hasattr(model, "classification_heads")
             and self.classification_head_name in model.classification_heads
         ), "model must provide sentence classification head for --criterion=sequence_tagging"
+
+        if self.remaining_inputs_to_save:
+            self.save_inputs(sample)
 
         multi_logits, _ = model(
             **sample["net_input"],
