@@ -8,6 +8,7 @@ from collections import defaultdict
 import h5py
 import numpy as np
 import torch
+from fairseq.data.dictionary import Dictionary
 from fairseq.models.roberta import RobertaModel
 
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
@@ -93,14 +94,21 @@ def main():
     os.makedirs(os.path.join(output_folder, "predictions"), exist_ok=False)
 
     outfs = {}
-    out_logits = defaultdict(list)
-    label_dictionaries = {}
+    out_hdfs: dict[str, h5py.File] = {}
+
+    label_dictionaries: dict[str, Dictionary] = {}
     for i, target_name in enumerate(target_names):
         outfs[target_name] = open(
             os.path.join(output_folder, "predictions", f"{target_name}.txt"), "w"
         )
-        label_dictionaries[target_name] = musicbert.task.label_dictionaries[i]
+        dictionary = musicbert.task.label_dictionaries[i]
+        label_dictionaries[target_name] = dictionary
+        dictionary.save(os.path.join(output_folder, f"{target_name}_dictionary.txt"))
+        out_hdfs[target_name] = h5py.File(
+            os.path.join(output_folder, "predictions", f"{target_name}.h5"), "w"
+        )
 
+    logit_count = 0
     try:
         for i in range(0, n_examples, args.batch_size):
             samples = [
@@ -117,7 +125,13 @@ def main():
 
             for logits, target_name in zip(all_logits, target_names):
                 # logits: batch x seq x vocab
-                out_logits[target_name].append(logits.detach().cpu().numpy())
+
+                # Enumerate over batch dimension
+                for logit_count, example in enumerate(logits, start=logit_count):
+                    out_hdfs[target_name].create_dataset(
+                        f"logits_{logit_count}", data=example.detach().cpu().numpy()
+                    )
+
                 preds = logits.argmax(dim=-1)
                 target_lengths = (
                     batch["net_input"]["src_lengths"] // args.compound_token_ratio
@@ -133,23 +147,16 @@ def main():
         for outf in outfs.values():
             outf.close()
 
-        for target_name, logits in out_logits.items():
-            # TODO: (Malcolm 2023-11-07) do this incrementally above rather than
-            #   all at once at end
-            # TODO: (Malcolm 2023-11-07) remove this comment
-            # It would be more efficient to use HDF5 but h5py isn't present in the
-            #   environment and I don't really want to mess around with the env unless
-            #   necessary.
-            with h5py.File(
-                os.path.join(output_folder, "predictions", f"{target_name}.h5"), "w"
-            ) as hf:
-                for i, array in enumerate(logits):
-                    hf.create_dataset(f"logits_{i}", data=array)
-            # logits_arr = np.array(logits, dtype=object)
-            # with open(
-            #     os.path.join(output_folder, "predictions", f"{target_name}.npy"), "wb"
-            # ) as npf:
-            #     np.save(npf, logits_arr)
+        for outf in out_hdfs.values():
+            outf.close()
+        # for target_name, logits in out_logits.items():
+        #     # TODO: (Malcolm 2023-11-07) do this incrementally above rather than
+        #     #   all at once at end
+        #     with h5py.File(
+        #         os.path.join(output_folder, "predictions", f"{target_name}.h5"), "w"
+        #     ) as hf:
+        #         for i, array in enumerate(logits):
+        #             hf.create_dataset(f"logits_{i}", data=array)
 
     shutil.copy(
         os.path.join(raw_data_dir, "metadata_test.txt"),
