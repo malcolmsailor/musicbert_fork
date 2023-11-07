@@ -307,6 +307,7 @@ else:
             " ".join(["fairseq-train"] + [shlex.quote(arg) for arg in TEST_ARGS])
         )
         if not args.dryrun:
+            # TODO: (Malcolm 2023-10-31) try using fairseq-validate here
             # Counterintuitively, the command name (`fairseq_train`) needs to be the first element
             #   in the the list of arguments
             # os.execvp("fairseq-train", ["fairseq-train"] + TEST_ARGS)

@@ -205,6 +205,23 @@ Supported lr schedulers:
 - inverse_sqrt
 - tri_stage
 
+# 2023-10-31
+
+Git hashes associated with different loss:
+
+write_seqs bf127995b0165a09b705042fafe95d3917aeab8a
+
+time_shifter
+reprs
+music_df 89dbe04793c2a613ae090beb7670d390becd5c0b
+
+xml_to_note_table
+mspell
+metricker
+df2hum 1196f4fc7f3fba61e5c2f5abe3bb1c84e343f8b2
+
+chord_tones_data a9805dfd38c8f803f6a4c5c1f6ad300d5e296d41
+midi_to_note_table
 
 # 2023-10-31
 
@@ -219,3 +236,4 @@ Judging by `With RNCollage chorales 1`, synthetic data makes some tasks worse an
 - 27979097: Polynomial decay **1
 - 27979103: Polynomial decay **2
 - 27978498: Three-stage
+- 27319105: With RNCollage chorales 1

@@ -1,8 +1,11 @@
 import argparse
 import json
 import os
-import sys
 import shutil
+import sys
+from collections import defaultdict
+
+import numpy as np
 import torch
 from fairseq.models.roberta import RobertaModel
 
@@ -18,7 +21,11 @@ USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", required=True, help="assumed to end in '_bin' and have an equivalent ending in '_raw' that contains 'metadata_test.txt'")
+    parser.add_argument(
+        "--data-dir",
+        required=True,
+        help="assumed to end in '_bin' and have an equivalent ending in '_raw' that contains 'metadata_test.txt'",
+    )
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--dataset", default="test", choices=("test", "valid", "train"))
     parser.add_argument("--batch-size", type=int, default=4)
@@ -53,7 +60,7 @@ def main():
 
     if os.path.exists(output_folder):
         raise ValueError(f"Output folder {output_folder} already exists")
-    
+
     assert data_dir.rstrip(os.path.sep).endswith("_bin")
     raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
     assert os.path.exists(raw_data_dir)
@@ -85,6 +92,7 @@ def main():
     os.makedirs(os.path.join(output_folder, "predictions"), exist_ok=False)
 
     outfs = {}
+    out_logits = defaultdict(list)
     label_dictionaries = {}
     for i, target_name in enumerate(target_names):
         outfs[target_name] = open(
@@ -100,7 +108,6 @@ def main():
             batch = dataset.collater(samples)
             src_tokens = batch["net_input"]["src_tokens"]
 
-            # logits: batch x seq x vocab
             all_logits = musicbert.predict(  # type:ignore
                 head="sequence_multitarget_tagging_head",
                 tokens=src_tokens,
@@ -108,6 +115,8 @@ def main():
             )
 
             for logits, target_name in zip(all_logits, target_names):
+                # logits: batch x seq x vocab
+                out_logits[target_name].append(logits)
                 preds = logits.argmax(dim=-1)
                 target_lengths = (
                     batch["net_input"]["src_lengths"] // args.compound_token_ratio
@@ -122,12 +131,17 @@ def main():
     finally:
         for outf in outfs.values():
             outf.close()
-    
+
+        for target_name, logits in out_logits.items():
+            with open(
+                os.path.join(output_folder, "predictions", f"{target_name}.npy"), "wb"
+            ) as npf:
+                np.save(npf, logits)
+
     shutil.copy(
         os.path.join(raw_data_dir, "metadata_test.txt"),
         os.path.join(output_folder, "metadata_test.txt"),
     )
-
 
 
 if __name__ == "__main__":
