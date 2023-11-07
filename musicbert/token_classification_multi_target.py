@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import os
+import pickle
 import warnings
 from typing import Literal, Sequence
 
@@ -138,9 +139,13 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             if isinstance(tensor_or_dict, dict):
                 for sub_key, sub_val in tensor_or_dict.items():
                     _save(f"{key}_{sub_key}", sub_val)
-            else:
+            elif isinstance(tensor_or_dict, torch.Tensor):
                 path = os.path.join(folder, f"{key}.npy")
                 np.save(path, tensor_or_dict.detach().cpu().numpy())
+            else:
+                path = os.path.join(folder, f"{key}.pickle")
+                with open(path, "wb") as outf:
+                    pickle.dump(tensor_or_dict, outf)
 
         folder = os.path.join(
             self.example_network_inputs_path, f"{self.remaining_inputs_to_save}"
