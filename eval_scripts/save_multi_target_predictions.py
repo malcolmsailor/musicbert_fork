@@ -5,6 +5,7 @@ import shutil
 import sys
 from collections import defaultdict
 
+import h5py
 import numpy as np
 import torch
 from fairseq.models.roberta import RobertaModel
@@ -133,14 +134,22 @@ def main():
             outf.close()
 
         for target_name, logits in out_logits.items():
+            # TODO: (Malcolm 2023-11-07) do this incrementally above rather than
+            #   all at once at end
+            # TODO: (Malcolm 2023-11-07) remove this comment
             # It would be more efficient to use HDF5 but h5py isn't present in the
             #   environment and I don't really want to mess around with the env unless
             #   necessary.
-            logits_arr = np.array(logits, dtype=object)
-            with open(
-                os.path.join(output_folder, "predictions", f"{target_name}.npy"), "wb"
-            ) as npf:
-                np.save(npf, logits_arr)
+            with h5py.File(
+                os.path.join(output_folder, "predictions", f"{target_name}.h5"), "w"
+            ) as hf:
+                for i, array in enumerate(logits):
+                    hf.create_dataset(f"logits_{i}", data=array)
+            # logits_arr = np.array(logits, dtype=object)
+            # with open(
+            #     os.path.join(output_folder, "predictions", f"{target_name}.npy"), "wb"
+            # ) as npf:
+            #     np.save(npf, logits_arr)
 
     shutil.copy(
         os.path.join(raw_data_dir, "metadata_test.txt"),
