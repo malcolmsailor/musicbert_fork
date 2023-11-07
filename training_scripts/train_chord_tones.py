@@ -328,7 +328,7 @@ else:
     else:
         BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
 
-    if os.path.exists(BEST_CHECKPOINT_PATH):
+    if os.path.exists(BEST_CHECKPOINT_PATH) or args.dryrun:
         if args.multitarget:
             PREDICTIONS_SCRIPT = os.path.join(
                 SCRIPT_DIR, "..", "eval_scripts", "save_multi_target_predictions.py"
@@ -341,14 +341,17 @@ else:
             # extension?
             PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, "test.txt")
 
-        PREDICT_ARGS = " ".join(
-            [
-                PREDICTIONS_SCRIPT,
-                f"--data-dir {DATA_BIN_DIR}",
-                f"--checkpoint {BEST_CHECKPOINT_PATH}",
-                f"--output-{'folder' if args.multitarget else 'file'} {PREDICTIONS_OUTPUT}",
-            ]
-        ).split()
+        PREDICT_ARGS = (
+            " ".join(
+                [
+                    PREDICTIONS_SCRIPT,
+                    f"--data-dir {DATA_BIN_DIR}",
+                    f"--checkpoint {BEST_CHECKPOINT_PATH}",
+                    f"--output-{'folder' if args.multitarget else 'file'} {PREDICTIONS_OUTPUT}",
+                ]
+            ).split()
+            + args_to_pass_on
+        )
         LOGGER.info(" ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS]))
         if not args.dryrun:
             # os.execvp("python", ["python"] + PREDICT_ARGS)
