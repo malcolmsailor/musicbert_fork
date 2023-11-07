@@ -21,9 +21,9 @@ conda activate newbert
 
 set -x
 
-
 python training_scripts/train_chord_tones.py \
     -d "${DATA_DIR}" \
-    --multitarget --skip-training --run-name "${RUN_NAME}"
+    --multitarget --skip-training --skip-test-metrics \
+    --run-name "${RUN_NAME}"
 
 set +x
