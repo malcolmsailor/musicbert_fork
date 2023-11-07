@@ -56,6 +56,9 @@ BATCH_SIZE = 4
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
 USER_DIR = os.path.join(SCRIPT_DIR, "../musicbert")
 
+# TODO: (Malcolm 2023-11-07) somehow we should parse args_to_pass_on so only
+#   the args appropriate to training get passed to training and only the args
+#   appropriate to prediction get passed to predict
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data-bin-dir", "-d", required=True)
@@ -113,10 +116,13 @@ if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-training flag, skipping training")
     LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
 else:
-    for arg in [args.architecture, args.wandb_project]:
+    for arg, arg_name in [
+        (args.architecture, "--architecture"),
+        (args.wandb_project, "--wandb-project"),
+    ]:
         missing_args = []
         if arg is None:
-            missing_args.append(arg)
+            missing_args.append(arg_name)
         if missing_args:
             raise ValueError(f"CLI args {missing_args} are required if training")
 
