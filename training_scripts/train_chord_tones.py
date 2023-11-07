@@ -107,7 +107,7 @@ else:
 
     CPUS_ON_NODE = os.cpu_count()
 
-DATA_BIN_DIR = args.data_bin_dir
+DATA_BIN_DIR = args.data_bin_dir.rstrip(os.path.sep)
 
 if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-training flag, skipping training")
