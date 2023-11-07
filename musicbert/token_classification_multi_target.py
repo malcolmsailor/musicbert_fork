@@ -113,6 +113,11 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         self.classification_head_name = classification_head_name
         self.pad_idx = task.label_dictionaries[0].pad()
         self.compound_token_ratio = self.task.args.compound_token_ratio
+        self.remaining_inputs_to_save = max(0, self.task.args.example_network_inputs_to_save)
+        self.example_network_inputs_path = self.task.args.example_network_inputs_path
+        if self.remaining_inputs_to_save:
+            assert self.example_network_inputs_path is not None, "must provide --example-network-inputs-path if --example-network-inputs-to-save > 0"
+
 
     @staticmethod
     def add_args(parser):
@@ -121,6 +126,8 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
                             default='multitarget_sequence_tagging_head',
                             help='name of the classification head to use')
         parser.add_argument('--compound-token-ratio', type=int, default=1)
+        parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
+        parser.add_argument('--example-network-inputs-path', type=str, default=None)
         # fmt: on
 
     def forward(self, model, sample, reduce=True):

@@ -116,7 +116,7 @@ def main():
 
             for logits, target_name in zip(all_logits, target_names):
                 # logits: batch x seq x vocab
-                out_logits[target_name].append(logits)
+                out_logits[target_name].append(logits.detach().cpu().numpy())
                 preds = logits.argmax(dim=-1)
                 target_lengths = (
                     batch["net_input"]["src_lengths"] // args.compound_token_ratio
