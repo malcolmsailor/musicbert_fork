@@ -133,10 +133,14 @@ def main():
             outf.close()
 
         for target_name, logits in out_logits.items():
+            # It would be more efficient to use HDF5 but h5py isn't present in the
+            #   environment and I don't really want to mess around with the env unless
+            #   necessary.
+            logits_arr = np.array(logits, dtype=object)
             with open(
                 os.path.join(output_folder, "predictions", f"{target_name}.npy"), "wb"
             ) as npf:
-                np.save(npf, logits)
+                np.save(npf, logits_arr)
 
     shutil.copy(
         os.path.join(raw_data_dir, "metadata_test.txt"),
