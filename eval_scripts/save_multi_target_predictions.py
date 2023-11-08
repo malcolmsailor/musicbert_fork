@@ -127,9 +127,9 @@ def main():
                 # logits: batch x seq x vocab
 
                 # Enumerate over batch dimension
-                for logit_count, example in enumerate(logits, start=logit_count):
+                for logit_i, example in enumerate(logits, start=i):
                     out_hdfs[target_name].create_dataset(
-                        f"logits_{logit_count}", data=example.detach().cpu().numpy()
+                        f"logits_{logit_i}", data=example.detach().cpu().numpy()
                     )
 
                 preds = logits.argmax(dim=-1)
