@@ -149,14 +149,6 @@ def main():
 
         for outf in out_hdfs.values():
             outf.close()
-        # for target_name, logits in out_logits.items():
-        #     # TODO: (Malcolm 2023-11-07) do this incrementally above rather than
-        #     #   all at once at end
-        #     with h5py.File(
-        #         os.path.join(output_folder, "predictions", f"{target_name}.h5"), "w"
-        #     ) as hf:
-        #         for i, array in enumerate(logits):
-        #             hf.create_dataset(f"logits_{i}", data=array)
 
     shutil.copy(
         os.path.join(raw_data_dir, "metadata_test.txt"),
