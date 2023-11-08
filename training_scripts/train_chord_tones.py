@@ -56,10 +56,6 @@ BATCH_SIZE = 4
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
 USER_DIR = os.path.join(SCRIPT_DIR, "../musicbert")
 
-# TODO: (Malcolm 2023-11-07) somehow we should parse args_to_pass_on so only
-#   the args appropriate to training get passed to training and only the args
-#   appropriate to prediction get passed to predict
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--data-bin-dir", "-d", required=True)
 parser.add_argument("--architecture", "-a")
@@ -80,7 +76,13 @@ parser.add_argument(
     "--run-name", type=str, help="required if skip-training, otherwise ignored"
 )
 parser.add_argument("--num-sample-inputs", type=int, default=4)
-args, args_to_pass_on = parser.parse_known_args()
+parser.add_argument(
+    "--predict-args",
+    type=str,
+    help="args to pass through unchanged to the prediction script, encapsulated in a single string",
+    default=None,
+)
+args, args_to_pass_on_to_train = parser.parse_known_args()
 
 
 TOKENS_PER_SAMPLE = 8192
@@ -240,7 +242,7 @@ else:
                 f"--example-network-inputs-path {EXAMPLE_INPUTS_PATH}",
             ]
         ).split()
-        + args_to_pass_on
+        + args_to_pass_on_to_train
     )
 
     TRAIN_ARGS = (
@@ -343,6 +345,10 @@ else:
         BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
 
     if os.path.exists(BEST_CHECKPOINT_PATH) or args.dryrun:
+        if args.predict_args is None:
+            args_to_pass_on_to_predict = []
+        else:
+            args_to_pass_on_to_predict = args.predict_args.split()
         if args.multitarget:
             PREDICTIONS_SCRIPT = os.path.join(
                 SCRIPT_DIR, "..", "eval_scripts", "save_multi_target_predictions.py"
@@ -364,7 +370,7 @@ else:
                     f"--output-{'folder' if args.multitarget else 'file'} {PREDICTIONS_OUTPUT}",
                 ]
             ).split()
-            + args_to_pass_on
+            + args_to_pass_on_to_predict
         )
         LOGGER.info(" ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS]))
         if not args.dryrun:
