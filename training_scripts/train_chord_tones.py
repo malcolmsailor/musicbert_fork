@@ -351,22 +351,24 @@ else:
             args_to_pass_on_to_predict = []
         else:
             args_to_pass_on_to_predict = args.predict_args.split()
-        if args.multitarget:
-            PREDICTIONS_SCRIPT = os.path.join(
-                SCRIPT_DIR, "..", "eval_scripts", "save_multi_target_predictions.py"
-            )
-            PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, "test")
-        else:
-            PREDICTIONS_SCRIPT = os.path.join(
-                SCRIPT_DIR, "..", "eval_scripts", "save_predictions.py"
-            )
-            # extension?
-            PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, "test.txt")
 
         assert all(split in {"test", "valid", "train"} for split in args.predict_splits)
         output_type = "folder" if args.multitarget else "file"
 
         for predict_split in args.predict_splits:
+            if args.multitarget:
+                PREDICTIONS_SCRIPT = os.path.join(
+                    SCRIPT_DIR, "..", "eval_scripts", "save_multi_target_predictions.py"
+                )
+                PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, predict_split)
+            else:
+                PREDICTIONS_SCRIPT = os.path.join(
+                    SCRIPT_DIR, "..", "eval_scripts", "save_predictions.py"
+                )
+                # extension?
+                PREDICTIONS_OUTPUT = os.path.join(
+                    PREDICTIONS_PATH, f"{predict_split}.txt"
+                )
             if args.predict_max_examples is not None:
                 max_example_str = f"--max-examples {args.predict_max_examples}"
             else:
