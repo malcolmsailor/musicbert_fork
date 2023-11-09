@@ -108,7 +108,6 @@ def main():
             os.path.join(output_folder, "predictions", f"{target_name}.h5"), "w"
         )
 
-    logit_count = 0
     try:
         for i in range(0, n_examples, args.batch_size):
             samples = [
@@ -151,8 +150,8 @@ def main():
             outf.close()
 
     shutil.copy(
-        os.path.join(raw_data_dir, "metadata_test.txt"),
-        os.path.join(output_folder, "metadata_test.txt"),
+        os.path.join(raw_data_dir, f"metadata_{args.dataset}.txt"),
+        os.path.join(output_folder, f"metadata_{args.dataset}.txt"),
     )
 
 

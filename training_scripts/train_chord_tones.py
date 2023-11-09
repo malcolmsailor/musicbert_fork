@@ -72,6 +72,8 @@ parser.add_argument("--dryrun", action="store_true")
 parser.add_argument("--skip-training", action="store_true")
 parser.add_argument("--skip-test-metrics", action="store_true")
 parser.add_argument("--skip-predict", action="store_true")
+parser.add_argument("--predict-splits", nargs="+", default=["test"])
+parser.add_argument("--predict-max-examples", default=None, type=int)
 parser.add_argument(
     "--run-name", type=str, help="required if skip-training, otherwise ignored"
 )
@@ -361,29 +363,41 @@ else:
             # extension?
             PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, "test.txt")
 
-        PREDICT_ARGS = (
-            " ".join(
-                [
-                    PREDICTIONS_SCRIPT,
-                    f"--data-dir {DATA_BIN_DIR}",
-                    f"--checkpoint {BEST_CHECKPOINT_PATH}",
-                    f"--output-{'folder' if args.multitarget else 'file'} {PREDICTIONS_OUTPUT}",
-                ]
-            ).split()
-            + args_to_pass_on_to_predict
-        )
-        LOGGER.info(" ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS]))
-        if not args.dryrun:
-            # os.execvp("python", ["python"] + PREDICT_ARGS)
-            subprocess.run(["python"] + PREDICT_ARGS, check=True)
+        assert all(split in {"test", "valid", "train"} for split in args.predict_splits)
+        output_type = "folder" if args.multitarget else "file"
 
-        # Copy the metadata file into the predictions folder too
-        assert DATA_BIN_DIR.endswith("_bin")
-        DATA_RAW_DIR = DATA_BIN_DIR[:-4] + "_raw"
-        shutil.copy(
-            os.path.join(DATA_RAW_DIR, "metadata_test.txt"),
-            os.path.join(PREDICTIONS_PATH, "metadata_test.txt"),
-        )
+        for predict_split in args.predict_splits:
+            if args.predict_max_examples is not None:
+                max_example_str = f"--max-examples {args.predict_max_examples}"
+            else:
+                max_example_str = ""
+            PREDICT_ARGS = (
+                " ".join(
+                    [
+                        PREDICTIONS_SCRIPT,
+                        f"--dataset {predict_split}",
+                        f"--data-dir {DATA_BIN_DIR}",
+                        f"--checkpoint {BEST_CHECKPOINT_PATH}",
+                        f"--output-{output_type} {PREDICTIONS_OUTPUT}",
+                        max_example_str,
+                    ]
+                ).split()
+                + args_to_pass_on_to_predict
+            )
+            LOGGER.info(
+                " ".join(["python"] + [shlex.quote(arg) for arg in PREDICT_ARGS])
+            )
+            if not args.dryrun:
+                # os.execvp("python", ["python"] + PREDICT_ARGS)
+                subprocess.run(["python"] + PREDICT_ARGS, check=True)
+
+            # Copy the metadata file into the predictions folder too
+            assert DATA_BIN_DIR.endswith("_bin")
+            DATA_RAW_DIR = DATA_BIN_DIR[:-4] + "_raw"
+            shutil.copy(
+                os.path.join(DATA_RAW_DIR, f"metadata_{predict_split}.txt"),
+                os.path.join(PREDICTIONS_PATH, f"metadata_{predict_split}.txt"),
+            )
     else:
         LOGGER.info(f"Didn't find {BEST_CHECKPOINT_PATH}")
         raise FileNotFoundError(BEST_CHECKPOINT_PATH)
