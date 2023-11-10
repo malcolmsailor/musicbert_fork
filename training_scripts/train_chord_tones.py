@@ -72,7 +72,9 @@ parser.add_argument("--dryrun", action="store_true")
 parser.add_argument("--skip-training", action="store_true")
 parser.add_argument("--skip-test-metrics", action="store_true")
 parser.add_argument("--skip-predict", action="store_true")
-parser.add_argument("--predict-splits", nargs="+", default=["test"])
+parser.add_argument(
+    "--predict-splits", nargs="+", default=["test"], choices=["test", "train", "valid"]
+)
 parser.add_argument("--predict-max-examples", default=None, type=int)
 parser.add_argument(
     "--run-name", type=str, help="required if skip-training, otherwise ignored"
