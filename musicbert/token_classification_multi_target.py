@@ -708,6 +708,7 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
             sequence_tagging=True,
         )
 
+
         return model
 
     def max_positions(self):

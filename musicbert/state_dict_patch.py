@@ -41,14 +41,25 @@ def load_state_dict(
 
     # Replace call to super() with nn.Module:
     out = nn.Module.load_state_dict(self, new_state_dict, strict)
-    breakpoint()
-    return out
 
+    # TODO: (Malcolm 2023-11-18) I'd like to be able to remove this
+    # CUDA hack
+    device = None
+    for v in self.state_dict().values(): # NB state_dict != new_state_dict; 
+        # new_state_dict is completely on cpu
+        if v.device.type != "cpu":
+            device = v.device
+            break
+    if device is not None:
+        self.to(device)
+
+    return out
 
 RobertaModel.load_state_dict = load_state_dict
 
 
 def upgrade_state_dict_named(self, state_dict, name):
+
     prefix = name + "." if name != "" else ""
 
     # rename decoder -> encoder before upgrading children modules
@@ -142,7 +153,9 @@ def upgrade_state_dict_named(self, state_dict, name):
         for k, v in cur_state.items():
             if prefix + "classification_heads." + k not in state_dict:
                 logger.info("Overwriting " + prefix + "classification_heads." + k)
-                state_dict[prefix + "classification_heads." + k] = v
+                # Hack to get these on to the right device
+                device = self.state_dict()[prefix + "classification_heads." + k].device
+                state_dict[prefix + "classification_heads." + k] = v.to(device)
 
 
 RobertaModel.upgrade_state_dict_named = upgrade_state_dict_named
