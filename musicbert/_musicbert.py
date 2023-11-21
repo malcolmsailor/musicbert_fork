@@ -466,11 +466,15 @@ class MusicBERTModel(RobertaModel):
         if name in self.classification_heads:
             prev_num_classes = [
                 x.out_proj.out_features
-                for x in self.classification_heads[name]._sub_heads  # type:ignore
+                for x in self.classification_heads[  # type:ignore
+                    name
+                ].multi_tag_sub_heads  # type:ignore
             ]
             prev_inner_dim_list = [
                 x.dense.out_features
-                for x in self.classification_heads[name]._sub_heads  # type:ignore
+                for x in self.classification_heads[  # type:ignore
+                    name
+                ].multi_tag_sub_heads  # type:ignore
             ]
             assert len(set(prev_inner_dim_list)) == 1
             prev_inner_dim = prev_inner_dim_list[0]

@@ -1,9 +1,51 @@
 import logging
 import re
+from argparse import Namespace
+from typing import Optional
 
+from fairseq.checkpoint_utils import prune_state_dict
+from fairseq.dataclass.utils import (
+    convert_namespace_to_omegaconf,
+    gen_parser_from_dataclass,
+)
 from fairseq.models.roberta import RobertaModel
+from omegaconf import DictConfig
+from torch import nn
 
 logger = logging.getLogger(__name__)
+
+
+# For unknown reasons, load_state_dict is not moving the classification heads to CUDA.
+# This patch to load_state_dict implements a hack to look after that.
+def load_state_dict(
+    self,
+    state_dict,
+    strict=True,
+    model_cfg: Optional[DictConfig] = None,
+    args: Optional[Namespace] = None,
+):
+    """Copies parameters and buffers from *state_dict* into this module and
+    its descendants.
+
+    Overrides the method in :class:`nn.Module`. Compared with that method
+    this additionally "upgrades" *state_dicts* from old checkpoints.
+    """
+
+    if model_cfg is None and args is not None:
+        logger.warn(
+            "using 'args' is deprecated, please update your code to use dataclass config"
+        )
+        model_cfg = convert_namespace_to_omegaconf(args).model
+    self.upgrade_state_dict(state_dict)
+    new_state_dict = prune_state_dict(state_dict, model_cfg)
+
+    # Replace call to super() with nn.Module:
+    out = nn.Module.load_state_dict(self, new_state_dict, strict)
+    breakpoint()
+    return out
+
+
+RobertaModel.load_state_dict = load_state_dict
 
 
 def upgrade_state_dict_named(self, state_dict, name):
@@ -39,7 +81,7 @@ def upgrade_state_dict_named(self, state_dict, name):
         if multitarget_head:
             # This actually a subhead
             m = re.search(
-                r"sequence_multitarget_tagging_head\._sub_heads\.\d+",
+                r"sequence_multitarget_tagging_head\.multi_tag_sub_heads\.\d+",
                 k[len(prefix + "classification_heads.") :],
             )
             assert m is not None

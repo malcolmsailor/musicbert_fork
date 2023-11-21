@@ -127,9 +127,10 @@ def main():
 
                 # Enumerate over batch dimension
                 for logit_i, example in enumerate(logits, start=i):
-                    out_hdfs[target_name].create_dataset(
-                        f"logits_{logit_i}", data=example.detach().cpu().numpy()
-                    )
+                    # Trim start and end tokens:
+                    data = example.detach().cpu().numpy()[1:-1]
+
+                    out_hdfs[target_name].create_dataset(f"logits_{logit_i}", data=data)
 
                 preds = logits.argmax(dim=-1)
                 target_lengths = (
