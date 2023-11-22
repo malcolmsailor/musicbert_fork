@@ -30,7 +30,6 @@ def load_state_dict(
     Overrides the method in :class:`nn.Module`. Compared with that method
     this additionally "upgrades" *state_dicts* from old checkpoints.
     """
-    breakpoint()
 
     if model_cfg is None and args is not None:
         logger.warn(
@@ -272,8 +271,6 @@ def upgrade_state_dict_named3(self, state_dict, name):
                     r"sequence_multitarget_tagging_head\._sub_heads\.\d+",
                     k[len(prefix + "classification_heads.") :],
                 )
-            if m is None:
-                breakpoint()
             assert m is not None
             head_name = m.group()
 
