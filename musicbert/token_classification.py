@@ -160,9 +160,8 @@ class SequenceTaggingCriterion(FairseqCriterion):
         )
         # TODO: (Malcolm 2023-11-22) implement these args? (added for compatibility
         #   with multi-target token classification interface)
-        parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
-        parser.add_argument('--example-network-inputs-path', type=str, default=None)
-
+        parser.add_argument("--example-network-inputs-to-save", type=int, default=0)
+        parser.add_argument("--example-network-inputs-path", type=str, default=None)
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -299,8 +298,7 @@ class SequenceTaggingCriterion(FairseqCriterion):
                     / (precision_per_class + recall_per_class)
                 )
 
-
-            labels =  TARGET_INFO["vocab"]
+            labels = TARGET_INFO["vocab"]
 
             if len(labels) <= MAX_LABELS_TO_LOG_INDIVIDUALLY:
                 for (
@@ -310,7 +308,9 @@ class SequenceTaggingCriterion(FairseqCriterion):
                     # specials may or may not be included in the metric arrays, but we
                     #   don't want to log them. So instead we do as follows:
                     class_i = len(precision_per_class) - len(labels) + label_i
-                    metrics.log_scalar(f"precision_{label}", precision_per_class[class_i])
+                    metrics.log_scalar(
+                        f"precision_{label}", precision_per_class[class_i]
+                    )
                     metrics.log_scalar(f"recall_{label}", recall_per_class[class_i])
                     metrics.log_scalar(f"f1_{label}", f1_per_class[class_i])
 
