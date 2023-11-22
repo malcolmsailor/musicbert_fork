@@ -98,12 +98,14 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
                     do_spectral_norm,
                 )
             )
+        self.n_heads = len(sub_heads)
+        # for i, sub_head in enumerate(sub_heads):
+        #     setattr(self, f"sub_head_{i}", sub_head)
         self.multi_tag_sub_heads = nn.ModuleList(sub_heads)
 
     def forward(self, features, **kwargs):
+        # x = [getattr(self, f"sub_head_{i}")(features) for i in range(self.n_heads)]
         x = [sub_head(features) for sub_head in self.multi_tag_sub_heads]
-        # TODO: (Malcolm 2023-09-15) I'm not at all sure this is the correct return
-        #   value; based on testing elsewhere I think it should be ok
         return x
 
 

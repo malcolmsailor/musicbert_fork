@@ -158,6 +158,11 @@ class SequenceTaggingCriterion(FairseqCriterion):
             default=0.5,
             help="scales loss weights where 0=no weighting and 1=weighting by token frequency",
         )
+        # TODO: (Malcolm 2023-11-22) implement these args? (added for compatibility
+        #   with multi-target token classification interface)
+        parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
+        parser.add_argument('--example-network-inputs-path', type=str, default=None)
+
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -460,6 +465,8 @@ class SequenceTaggingTask(FairseqTask):
         max_tokens_to_print=16,
         token_length=1,
     ):
+        if split not in self.datasets:
+            return
         model_state = model.training
         model.eval()
         dataset = self.datasets[split]
