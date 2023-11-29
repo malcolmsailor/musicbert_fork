@@ -27,6 +27,7 @@ def main():
     df.columns = [f"Num {split} examples" for split in splits]
     for col in df.columns:
         df[col] = df[col].astype(int)
+    df.loc["total"] = df.sum()
     print(df)
 
 
