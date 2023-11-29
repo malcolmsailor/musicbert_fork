@@ -3,8 +3,10 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
+TASK=$1
+
 set -x
-echo sbatch /home/ms3682/code/musicbert_fork/misc_scripts/write_seqs.sh \
+echo sbatch ~/code/musicbert_fork/misc_scripts/write_seqs.sh \
     ~/code/write_seqs/configs/oct_data_"${TASK}".yaml \
     ~/project/raw_data/salami_slice_no_suspensions \
     ~/project/datasets/chord_tones/fairseq/"${TASK}" \
