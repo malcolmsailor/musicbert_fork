@@ -10,7 +10,11 @@ def main():
     parser.add_argument("input_dir")
     args = parser.parse_args()
     counters = []
-    splits = ("test",)
+    splits = (
+        "train",
+        "valid",
+        "test",
+    )
     for split in splits:
         counter = Counter()
         csv_path = os.path.join(args.input_dir, f"metadata_{split}.txt")
