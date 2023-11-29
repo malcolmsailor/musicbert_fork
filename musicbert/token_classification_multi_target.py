@@ -12,7 +12,7 @@ import warnings
 from typing import Literal, Sequence
 
 import numpy as np
-import sklearn.metrics  # type:ignore
+import sklearn.metrics
 import torch
 import torch.nn.functional as F
 from fairseq import metrics, utils
