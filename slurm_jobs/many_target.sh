@@ -15,6 +15,8 @@ if [[ -z $TASK ]]; then
     exit 1
 fi
 
+shift
+
 module load miniconda
 conda activate newbert
 
