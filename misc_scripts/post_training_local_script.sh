@@ -15,11 +15,15 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
+set -e
+
 SLURM_ID=$1
 
 # Step 1: Download predictions
 echo "Downloading predictions for SLURM_ID: $SLURM_ID"
+set -x
 bash /Users/malcolm/google_drive/python/data_science/musicbert_fork/misc_scripts/local_pred_download.sh $SLURM_ID
+set +x
 
 # Check if download was successful
 if [ $? -ne 0 ]; then
@@ -40,7 +44,9 @@ fi
 
 # 2.2 Run musicbert_metrics.sh
 echo "Running musicbert_metrics.sh for SLURM_ID: $SLURM_ID"
+set -x
 bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_metrics.sh $SLURM_ID test
+set +x
 
 # Check if musicbert_metrics was successful
 if [ $? -ne 0 ]; then
@@ -50,7 +56,9 @@ fi
 
 # 2.3 Run musicbert_synced_metrics.sh
 echo "Running musicbert_synced_metrics.sh for SLURM_ID: $SLURM_ID"
+set -x
 bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_synced_metrics.sh ~/output/musicbert_collated_predictions/$SLURM_ID/test
+set +x
 
 # Check if musicbert_synced_metrics was successful
 if [ $? -ne 0 ]; then
