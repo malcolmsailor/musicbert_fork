@@ -9,6 +9,7 @@ import pandas as pd
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_dir")
+    parser.add_argument("--output-csv", default=None)
     args = parser.parse_args()
     splits = (
         "train",
@@ -41,10 +42,15 @@ def main():
     df = df.fillna(value=0)
     example_col_names = [f"Num {split} examples" for split in col_names]
     score_col_names = [f"Num {split} unique scores" for split in col_names]
+
     df.columns = list(chain(*zip(example_col_names, score_col_names)))
+    df["total_examples"] = df[example_col_names].sum(axis=1)
+    df["total_unique_scores"] = df[score_col_names].sum(axis=1)
     for col in df.columns:
         df[col] = df[col].astype(int)
     df.loc["total"] = df.sum()
+    if args.output_csv is not None:
+        df.to_csv(args.output_csv)
     print(df)
 
 
