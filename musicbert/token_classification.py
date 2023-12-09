@@ -306,7 +306,11 @@ class SequenceTaggingCriterion(FairseqCriterion):
                 )
                 - n_special
             )
-            labels = [TARGET_INFO["vocab"][i] for i in observed_unique_label_indices]
+            # In case there were any predicted specials (e.g., early in training),
+            #   ignore them by ignoring negative numbers
+            labels = [
+                TARGET_INFO["vocab"][i] for i in observed_unique_label_indices if i >= 0
+            ]
 
             if len(labels) <= MAX_LABELS_TO_LOG_INDIVIDUALLY:
                 for (
