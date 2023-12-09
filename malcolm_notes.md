@@ -237,3 +237,8 @@ Judging by `With RNCollage chorales 1`, synthetic data makes some tasks worse an
 - 27979103: Polynomial decay **2
 - 27978498: Three-stage
 - 27319105: With RNCollage chorales 1
+
+# 2023-12-04
+
+Slurm ids for different splits:
+29961081 29961105 29961082 29961104 29961083 29961106 29961107 29961108 29961109

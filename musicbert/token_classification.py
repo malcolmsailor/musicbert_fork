@@ -277,10 +277,12 @@ class SequenceTaggingCriterion(FairseqCriterion):
 
             n_special = TARGET_INFO["n_specials"]
             no_specials_mask = y_true >= n_special  # type:ignore
+            y_true_no_specials = y_true[no_specials_mask]
+            y_pred_no_specials = y_pred[no_specials_mask]
             confused = sklearn.metrics.confusion_matrix(
-                y_true[no_specials_mask] - n_special,
-                y_pred[no_specials_mask] - n_special,
+                y_true_no_specials - n_special, y_pred_no_specials - n_special
             )
+
             with np.errstate(divide="ignore", invalid="ignore"):
                 warnings.filterwarnings(
                     "ignore",
@@ -298,21 +300,37 @@ class SequenceTaggingCriterion(FairseqCriterion):
                     / (precision_per_class + recall_per_class)
                 )
 
-            labels = TARGET_INFO["vocab"]
+            observed_unique_label_indices = np.unique(
+                np.concatenate(
+                    [np.unique(y_true_no_specials), np.unique(y_pred_no_specials)]
+                )
+                - n_special
+            )
+            labels = [TARGET_INFO["vocab"][i] for i in observed_unique_label_indices]
 
             if len(labels) <= MAX_LABELS_TO_LOG_INDIVIDUALLY:
                 for (
                     label_i,
                     label,
                 ) in enumerate(labels):
+                    # (Malcolm 2023-12-09) I think the below comment must be out of
+                    #   date, since above we only get the confusion matrix on
+                    #   non-specials.
+
                     # specials may or may not be included in the metric arrays, but we
                     #   don't want to log them. So instead we do as follows:
-                    class_i = len(precision_per_class) - len(labels) + label_i
+                    # class_i = len(precision_per_class) - len(labels) + label_i
+
+                    # metrics.log_scalar(
+                    #     f"precision_{label}", precision_per_class[class_i]
+                    # )
+                    # metrics.log_scalar(f"recall_{label}", recall_per_class[class_i])
+                    # metrics.log_scalar(f"f1_{label}", f1_per_class[class_i])
                     metrics.log_scalar(
-                        f"precision_{label}", precision_per_class[class_i]
+                        f"precision_{label}", precision_per_class[label_i]
                     )
-                    metrics.log_scalar(f"recall_{label}", recall_per_class[class_i])
-                    metrics.log_scalar(f"f1_{label}", f1_per_class[class_i])
+                    metrics.log_scalar(f"recall_{label}", recall_per_class[label_i])
+                    metrics.log_scalar(f"f1_{label}", f1_per_class[label_i])
 
     @staticmethod
     def logging_outputs_can_be_summed() -> bool:

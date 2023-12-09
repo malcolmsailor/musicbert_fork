@@ -10,24 +10,26 @@
 #     2. `bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_synced_metrics.sh ~/output/musicbert_collated_predictions/SLURM_ID/test`
 
 # Check if a SLURM_ID is provided
-if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 SLURM_ID"
+if [ "$#" -lt 1 ]; then
+    echo "Usage: $0 SLURM_IDS"
     exit 1
 fi
 
 set -e
 
+SLURM_IDS=("$@")
+
 SLURM_ID=$1
 
 # Step 1: Download predictions
-echo "Downloading predictions for SLURM_ID: $SLURM_ID"
+echo "Downloading predictions for SLURM_IDS: ${SLURM_IDS[@]}"
 set -x
-bash /Users/malcolm/google_drive/python/data_science/musicbert_fork/misc_scripts/local_pred_download.sh $SLURM_ID
+bash /Users/malcolm/google_drive/python/data_science/musicbert_fork/misc_scripts/local_pred_download.sh ${SLURM_IDS[@]}
 set +x
 
 # Check if download was successful
 if [ $? -ne 0 ]; then
-    echo "Download failed for SLURM_ID: $SLURM_ID"
+    echo "Download failed for SLURM_IDS: ${SLURM_IDS[@]}"
     exit 1
 fi
 
@@ -42,31 +44,33 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 2.2 Run musicbert_metrics.sh
-echo "Running musicbert_metrics.sh for SLURM_ID: $SLURM_ID"
-set -x
-bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_metrics.sh $SLURM_ID test
-set +x
+for SLURM_ID in ${SLURM_IDS[@]}; do
 
-# Check if musicbert_metrics was successful
-if [ $? -ne 0 ]; then
-    echo "musicbert_metrics.sh failed for SLURM_ID: $SLURM_ID"
-    exit 1
-fi
+    # 2.2 Run musicbert_metrics.sh
+    echo "Running musicbert_metrics.sh for SLURM_ID: $SLURM_ID"
+    set -x
+    bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_metrics.sh $SLURM_ID test
+    set +x
 
-# 2.3 Run musicbert_synced_metrics.sh
-echo "Running musicbert_synced_metrics.sh for SLURM_ID: $SLURM_ID"
-set -x
-bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_synced_metrics.sh ~/output/musicbert_collated_predictions/$SLURM_ID/test
-set +x
+    # Check if musicbert_metrics was successful
+    if [ $? -ne 0 ]; then
+        echo "musicbert_metrics.sh failed for SLURM_ID: $SLURM_ID"
+        exit 1
+    fi
 
-# Check if musicbert_synced_metrics was successful
-if [ $? -ne 0 ]; then
-    echo "musicbert_synced_metrics.sh failed for SLURM_ID: $SLURM_ID"
-    exit 1
-fi
+    # 2.3 Run musicbert_synced_metrics.sh
+    echo "Running musicbert_synced_metrics.sh for SLURM_ID: $SLURM_ID"
+    set -x
+    bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_synced_metrics.sh ~/output/musicbert_collated_predictions/$SLURM_ID/test
+    set +x
 
-echo "All operations completed successfully for SLURM_ID: $SLURM_ID"
+    # Check if musicbert_synced_metrics was successful
+    if [ $? -ne 0 ]; then
+        echo "musicbert_synced_metrics.sh failed for SLURM_ID: $SLURM_ID"
+        exit 1
+    fi
 
+    echo "All operations completed successfully for SLURM_ID: $SLURM_ID"
+done
 # Deactivate the virtual environment
 deactivate
