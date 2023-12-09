@@ -69,7 +69,7 @@ def main():
 
     os.makedirs(args.output_folder, exist_ok=True)
 
-    outf = open(os.path.join(args.output_file, "predictions", "predictions.txt"), "w")
+    outf = open(os.path.join(args.output_folder, "predictions", "predictions.txt"), "w")
     out_hdf = h5py.File(
         os.path.join(args.output_folder, "predictions", "predictions.h5"), "w"
     )
