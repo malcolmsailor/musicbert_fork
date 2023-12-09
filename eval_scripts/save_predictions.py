@@ -67,7 +67,7 @@ def main():
     if args.max_examples is not None:
         n_examples = min(args.max_examples, n_examples)
 
-    os.makedirs(args.output_folder, exist_ok=True)
+    os.makedirs(os.path.join(args.output_folder, "predictions"), exist_ok=True)
 
     outf = open(os.path.join(args.output_folder, "predictions", "predictions.txt"), "w")
     out_hdf = h5py.File(
