@@ -1,5 +1,7 @@
 import argparse
+import json
 import os
+import shutil
 import sys
 
 import h5py
@@ -47,6 +49,19 @@ def main():
 
         sys.excepthook = custom_excepthook
 
+    assert data_dir.rstrip(os.path.sep).endswith("_bin")
+    raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
+    assert os.path.exists(raw_data_dir)
+
+    target_name_json_path = os.path.join(data_dir, "target_names.json")
+    if os.path.exists(target_name_json_path):
+        with open(target_name_json_path, "r") as inf:
+            target_names = json.load(inf)
+            assert len(target_names) == 1
+            target_name = target_names[0]
+    else:
+        target_name = "label"
+
     musicbert = RobertaModel.from_pretrained(
         model_name_or_path=PARENT_DIR,
         checkpoint_file=checkpoint,
@@ -67,13 +82,16 @@ def main():
     if args.max_examples is not None:
         n_examples = min(args.max_examples, n_examples)
 
-    os.makedirs(os.path.join(args.output_folder, "predictions"), exist_ok=True)
+    os.makedirs(os.path.join(args.output_folder, target_name), exist_ok=True)
 
-    outf = open(os.path.join(args.output_folder, "predictions", "predictions.txt"), "w")
+    outf = open(os.path.join(args.output_folder, target_name, "predictions.txt"), "w")
     out_hdf = h5py.File(
-        os.path.join(args.output_folder, "predictions", "predictions.h5"), "w"
+        os.path.join(args.output_folder, target_name, "predictions.h5"), "w"
     )
     label_dictionary = musicbert.task.label_dictionary
+    label_dictionary.save(
+        os.path.join(args.output_folder, f"{target_name}_dictionary.txt")
+    )
 
     try:
         for i in range(0, n_examples, args.batch_size):
@@ -106,6 +124,11 @@ def main():
 
     finally:
         outf.close()
+
+    shutil.copy(
+        os.path.join(raw_data_dir, f"metadata_{args.dataset}.txt"),
+        os.path.join(args.output_folder, f"metadata_{args.dataset}.txt"),
+    )
 
 
 if __name__ == "__main__":
