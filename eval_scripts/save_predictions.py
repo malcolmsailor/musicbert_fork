@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 
+import h5py
 import torch
 from fairseq.models.roberta import RobertaModel
 
@@ -22,7 +23,7 @@ def parse_args():
     parser.add_argument("--dataset", default="test", choices=("test", "valid", "train"))
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--max-examples", type=int, default=None)
-    parser.add_argument("--output-file", required=True)
+    parser.add_argument("--output-folder", required=True)
     parser.add_argument("--compound-token-ratio", type=int, default=8)
     parser.add_argument("--msdebug", action="store_true")
 
@@ -66,9 +67,12 @@ def main():
     if args.max_examples is not None:
         n_examples = min(args.max_examples, n_examples)
 
-    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
+    os.makedirs(args.output_folder, exist_ok=True)
 
-    outf = open(args.output_file, "w")
+    outf = open(os.path.join(args.output_file, "predictions", "predictions.txt"), "w")
+    out_hdf = h5py.File(
+        os.path.join(args.output_folder, "predictions", "predictions.h5"), "w"
+    )
     label_dictionary = musicbert.task.label_dictionary
 
     try:
@@ -83,6 +87,13 @@ def main():
             logits = musicbert.predict(  # type:ignore
                 head="sequence_tagging_head", tokens=src_tokens, return_logits=True
             )
+
+            # Enumerate over batch dimension
+            for logit_i, example in enumerate(logits, start=i):
+                # Trim start and end tokens:
+                data = example.detach().cpu().numpy()[1:-1]
+
+                out_hdf.create_dataset(f"logits_{logit_i}", data=data)
 
             preds = logits.argmax(dim=-1)
             target_lengths = (
