@@ -15,8 +15,6 @@ if [ "$#" -lt 1 ]; then
     exit 1
 fi
 
-set -e
-
 SLURM_IDS=("$@")
 
 SLURM_ID=$1
@@ -28,10 +26,27 @@ bash /Users/malcolm/google_drive/python/data_science/musicbert_fork/misc_scripts
 set +x
 
 # Check if download was successful
-if [ $? -ne 0 ]; then
-    echo "Download failed for SLURM_IDS: ${SLURM_IDS[@]}"
-    exit 1
+return_code=$?
+
+if [ $return_code -eq 42 ]; then
+    echo "Host is not available, skipping rsync"
+    read -p "Do you want to continue (i.e., if local files already downloaded)? (y/n) " response
+
+    # Check the response
+    if [[ $response =~ ^[Yy]$ ]]; then
+        echo "Proceeding..."
+    else
+        echo "Exiting..."
+        exit 1
+    fi
+else
+    if [ $return_code -ne 0 ]; then
+        echo "Download failed for SLURM_IDS: ${SLURM_IDS[@]}"
+        exit 1
+    fi
 fi
+
+set -e
 
 # Step 2: See synced metrics
 # 2.1 Initialize music_df venv
@@ -44,12 +59,14 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+MUSIC_DF_FOLDER="/Users/malcolm/google_drive/python/malmus/music_df"
+
 for SLURM_ID in ${SLURM_IDS[@]}; do
 
     # 2.2 Run musicbert_metrics.sh
     echo "Running musicbert_metrics.sh for SLURM_ID: $SLURM_ID"
     set -x
-    bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_metrics.sh $SLURM_ID test
+    bash "${MUSIC_DF_FOLDER}"/user_scripts/musicbert_metrics.sh $SLURM_ID test
     set +x
 
     # Check if musicbert_metrics was successful
@@ -61,7 +78,9 @@ for SLURM_ID in ${SLURM_IDS[@]}; do
     # 2.3 Run musicbert_synced_metrics.sh
     echo "Running musicbert_synced_metrics.sh for SLURM_ID: $SLURM_ID"
     set -x
-    bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_synced_metrics.sh ~/output/musicbert_collated_predictions/$SLURM_ID/test
+    bash "${MUSIC_DF_FOLDER}"/user_scripts/musicbert_synced_metrics.sh \
+        ~/output/musicbert_collated_predictions/$SLURM_ID/test \
+        ~/output/musicbert_collated_predictions/$SLURM_ID/test_metrics.csv
     set +x
 
     # Check if musicbert_synced_metrics was successful

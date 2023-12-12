@@ -1,5 +1,13 @@
 #!/bin/bash
 
+hostname="transfer-grace.ycrc.yale.edu"
+ping -c 1 "$hostname" &>/dev/null
+
+if [ $? -ne 0 ]; then
+    echo "$hostname is not reachable"
+    exit 42
+fi
+
 run_names=("$@")
 
 if [ "$#" -lt 1 ]; then
