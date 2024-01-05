@@ -53,10 +53,11 @@ class AssertSameLengthDataset(FairseqDataset):
         self.first_to_second_ratio = first_to_second_ratio
 
     def __getitem__(self, index):
-        assert (
-            torch.numel(self.first[index])
-            == torch.numel(self.second[index]) * self.first_to_second_ratio
-        )
+        if self.second is not None:
+            assert (
+                torch.numel(self.first[index])
+                == torch.numel(self.second[index]) * self.first_to_second_ratio
+            )
 
     def __len__(self):
         return 0
@@ -400,6 +401,7 @@ class SequenceTaggingTask(FairseqTask):
         # (Malcolm 2023-09-05) not sure why we would want to not shuffle
         parser.add_argument("--no-shuffle", action="store_true", default=False)
         parser.add_argument("--freeze-layers", type=int, default=-1)
+        parser.add_argument("--label-dictionary-path", default=None)
 
     def __init__(self, args, data_dictionary, label_dictionary):
         if args.msdebug:
@@ -469,10 +471,15 @@ class SequenceTaggingTask(FairseqTask):
         )
         LOGGER.info("[input] dictionary: {} types".format(len(data_dict)))
 
+        if args.label_dictionary_path is None:
+            label_dictionary_path = os.path.join(args.data, "label", "dict.txt")
+        else:
+            label_dictionary_path =args.label_dictionary_path
+
         # load label dictionary
         label_dict = cls.load_dictionary(
             args,
-            os.path.join(args.data, "label", "dict.txt"),
+            label_dictionary_path,
             source=False,
         )
         LOGGER.info("[label] dictionary: {} types".format(len(label_dict)))
@@ -597,15 +604,23 @@ class SequenceTaggingTask(FairseqTask):
                 self.args.dataset_impl,  # type:ignore
                 combine=combine,
             )
-            assert dataset is not None, "could not find dataset: {}".format(
-                get_path(type, split)
-            )
+
             return dataset
 
         src_tokens = make_dataset("input0", self.source_dictionary)
+        
+        assert src_tokens is not None, "could not find dataset: {}".format(
+            get_path("input0", split)
+        )
 
+        dataset = {}
         label_dataset = make_dataset("label", self.label_dictionary)
-
+        if label_dataset is None:
+            expected_path = get_path(f"label", split)
+            LOGGER.warning(
+                f"could not find dataset: {expected_path}. If predicting "
+                "unlabeled data, this is expected."
+            )
         # (Malcolm 2023-09-08) The code that I based this off of includes the
         #   following commented out lines so that we only predict items in the
         #   target vocabulary and not specials. However that doesn't seem necessary
@@ -627,12 +642,14 @@ class SequenceTaggingTask(FairseqTask):
         # )
         # RightPadDataset uses -1 as padding, will be used to mask out padding
         # when calculating loss
-        label_dataset = RightPadDataset(
-            label_dataset, pad_idx=self.label_dictionary.pad()
-        )
-        assert self.label_dictionary.pad() == self.source_dictionary.pad() == PAD_IDX
+        else:
+            label_dataset = RightPadDataset(
+                label_dataset, pad_idx=self.label_dictionary.pad()
+            )
+            assert self.label_dictionary.pad() == self.source_dictionary.pad() == PAD_IDX
+            dataset["target"] = label_dataset
 
-        dataset = {
+        dataset.update({
             "id": IdDataset(),
             "net_input": {
                 "src_tokens": RightPadDataset(
@@ -641,13 +658,12 @@ class SequenceTaggingTask(FairseqTask):
                 ),
                 "src_lengths": NumelDataset(src_tokens, reduce=False),
             },
-            "target": label_dataset,
             "nsentences": NumSamplesDataset(),
             "ntokens": NumelDataset(src_tokens, reduce=True),
             "_assert_lengths_match": AssertSameLengthDataset(
                 src_tokens, label_dataset, self.args.compound_token_ratio  # type:ignore
             ),
-        }
+        })
 
         nested_dataset = NestedDictionaryDataset(
             dataset,
