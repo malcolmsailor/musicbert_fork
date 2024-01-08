@@ -4,12 +4,16 @@ import os
 import shutil
 import sys
 from collections import defaultdict
+import logging
 
 import h5py
 import numpy as np
 import torch
 from fairseq.data.dictionary import Dictionary
 from fairseq.models.roberta import RobertaModel
+
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
 
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
 PARENT_DIR = os.path.join(SCRIPT_DIR, "..")

@@ -3,10 +3,14 @@ import json
 import os
 import shutil
 import sys
+import logging
 
 import h5py
 import torch
 from fairseq.models.roberta import RobertaModel
+
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
 
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
 PARENT_DIR = os.path.join(SCRIPT_DIR, "..")
@@ -17,6 +21,8 @@ sys.path.append(PARENT_DIR)
 
 USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 
+# TODO: (Malcolm 2024-01-05) implement getting target names and dictionaries from
+#   labeled dataset (which we provide path to)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -27,7 +33,13 @@ def parse_args():
     parser.add_argument("--max-examples", type=int, default=None)
     parser.add_argument("--output-folder", required=True)
     parser.add_argument("--compound-token-ratio", type=int, default=8)
+    parser.add_argument("--label-dictionary-path")
     parser.add_argument("--msdebug", action="store_true")
+    parser.add_argument(
+        "--target-names", 
+        help="Path to target names JSON file, otherwise we look in --data-dir "
+        "for a file called 'target_names.json'", default=None
+    )
 
     args = parser.parse_args()
     return args
@@ -35,7 +47,11 @@ def parse_args():
 
 def main():
     args = parse_args()
-    data_dir, checkpoint = args.data_dir, args.checkpoint
+    data_dir, checkpoint, output_folder = (
+        args.data_dir,
+        args.checkpoint,
+        args.output_folder,
+    )
     if args.msdebug:
         import pdb
         import sys
@@ -49,11 +65,17 @@ def main():
 
         sys.excepthook = custom_excepthook
 
+    if os.path.exists(output_folder):
+        raise ValueError(f"Output folder {output_folder} already exists")
+
     assert data_dir.rstrip(os.path.sep).endswith("_bin")
     raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
     assert os.path.exists(raw_data_dir)
 
-    target_name_json_path = os.path.join(data_dir, "target_names.json")
+    if args.target_names is not None:
+        target_name_json_path = args.target_names
+    else:
+        target_name_json_path = os.path.join(data_dir, "target_names.json")
     if os.path.exists(target_name_json_path):
         with open(target_name_json_path, "r") as inf:
             target_names = json.load(inf)
@@ -68,6 +90,7 @@ def main():
         data_name_or_path=data_dir,
         user_dir=USER_DIR,
         task="musicbert_sequence_tagging",
+        label_dictionary_path=args.label_dictionary_path,
     )
 
     musicbert.task.load_dataset(args.dataset)
@@ -82,15 +105,15 @@ def main():
     if args.max_examples is not None:
         n_examples = min(args.max_examples, n_examples)
 
-    os.makedirs(os.path.join(args.output_folder, target_name), exist_ok=True)
+    os.makedirs(os.path.join(output_folder, target_name), exist_ok=True)
 
-    outf = open(os.path.join(args.output_folder, target_name, "predictions.txt"), "w")
+    outf = open(os.path.join(output_folder, target_name, "predictions.txt"), "w")
     out_hdf = h5py.File(
-        os.path.join(args.output_folder, target_name, "predictions.h5"), "w"
+        os.path.join(output_folder, target_name, "predictions.h5"), "w"
     )
     label_dictionary = musicbert.task.label_dictionary
     label_dictionary.save(
-        os.path.join(args.output_folder, f"{target_name}_dictionary.txt")
+        os.path.join(output_folder, f"{target_name}_dictionary.txt")
     )
 
     try:
@@ -127,7 +150,7 @@ def main():
 
     shutil.copy(
         os.path.join(raw_data_dir, f"metadata_{args.dataset}.txt"),
-        os.path.join(args.output_folder, f"metadata_{args.dataset}.txt"),
+        os.path.join(output_folder, f"metadata_{args.dataset}.txt"),
     )
 
 
