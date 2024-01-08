@@ -7,7 +7,7 @@ if [[ -z $data_folder ]]; then
     exit 1
 fi
 
-cd "${data_folder}"
+cd "${data_folder}/.."
 data_folder_dirname=$(dirname "${data_folder}")
 
 data_folder_basename=$(basename "${data_folder}")
@@ -19,6 +19,6 @@ if [[ -e "${data_folder_basename}".zip ]]; then
 fi
 
 set -x
-zip -r "${data_folder}".zip .
-scp -r "${data_folder}".zip ms3682@transfer-grace.ycrc.yale.edu:project/raw_data/
+zip -r "${data_folder%/}".zip "${data_folder_basename}"
+scp -r "${data_folder%/}".zip ms3682@transfer-grace.ycrc.yale.edu:project/raw_data/
 set +x

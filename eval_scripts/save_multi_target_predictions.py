@@ -1,10 +1,10 @@
 import argparse
 import json
+import logging
 import os
 import shutil
 import sys
 from collections import defaultdict
-import logging
 
 import h5py
 import numpy as np
@@ -46,7 +46,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    data_dir, checkpoint, output_folder = (
+    data_dir, checkpoint, output_folder_base = (
         args.data_dir,
         args.checkpoint,
         args.output_folder,
@@ -63,6 +63,8 @@ def main():
             pdb.post_mortem(exc_traceback)
 
         sys.excepthook = custom_excepthook
+
+    output_folder = os.path.join(output_folder_base, args.dataset)
 
     if os.path.exists(output_folder):
         raise ValueError(f"Output folder {output_folder} already exists")

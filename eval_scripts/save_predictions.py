@@ -1,9 +1,9 @@
 import argparse
 import json
+import logging
 import os
 import shutil
 import sys
-import logging
 
 import h5py
 import torch
@@ -24,6 +24,7 @@ USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 # TODO: (Malcolm 2024-01-05) implement getting target names and dictionaries from
 #   labeled dataset (which we provide path to)
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", required=True)
@@ -36,9 +37,10 @@ def parse_args():
     parser.add_argument("--label-dictionary-path")
     parser.add_argument("--msdebug", action="store_true")
     parser.add_argument(
-        "--target-names", 
+        "--target-names",
         help="Path to target names JSON file, otherwise we look in --data-dir "
-        "for a file called 'target_names.json'", default=None
+        "for a file called 'target_names.json'",
+        default=None,
     )
 
     args = parser.parse_args()
@@ -47,7 +49,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    data_dir, checkpoint, output_folder = (
+    data_dir, checkpoint, output_folder_base = (
         args.data_dir,
         args.checkpoint,
         args.output_folder,
@@ -64,6 +66,8 @@ def main():
             pdb.post_mortem(exc_traceback)
 
         sys.excepthook = custom_excepthook
+
+    output_folder = os.path.join(output_folder_base, args.dataset)
 
     if os.path.exists(output_folder):
         raise ValueError(f"Output folder {output_folder} already exists")
@@ -105,16 +109,18 @@ def main():
     if args.max_examples is not None:
         n_examples = min(args.max_examples, n_examples)
 
-    os.makedirs(os.path.join(output_folder, target_name), exist_ok=True)
+    os.makedirs(output_folder, exist_ok=False)
+    os.makedirs(os.path.join(output_folder, "predictions"), exist_ok=False)
 
-    outf = open(os.path.join(output_folder, target_name, "predictions.txt"), "w")
+    # os.makedirs(os.path.join(output_folder, target_name), exist_ok=True)
+
+    # outf = open(os.path.join(output_folder, target_name, "predictions.txt"), "w")
+    outf = open(os.path.join(output_folder, "predictions", f"{target_name}.txt"), "w")
     out_hdf = h5py.File(
-        os.path.join(output_folder, target_name, "predictions.h5"), "w"
+        os.path.join(output_folder, "predictions", f"{target_name}.h5"), "w"
     )
     label_dictionary = musicbert.task.label_dictionary
-    label_dictionary.save(
-        os.path.join(output_folder, f"{target_name}_dictionary.txt")
-    )
+    label_dictionary.save(os.path.join(output_folder, f"{target_name}_dictionary.txt"))
 
     try:
         for i in range(0, n_examples, args.batch_size):
