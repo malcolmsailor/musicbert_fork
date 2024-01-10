@@ -357,7 +357,7 @@ else:
         assert all(split in {"test", "valid", "train"} for split in args.predict_splits)
 
         for predict_split in args.predict_splits:
-            PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, predict_split)
+            # PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, predict_split)
             if args.multitarget:
                 PREDICTIONS_SCRIPT = os.path.join(
                     SCRIPT_DIR, "..", "eval_scripts", "save_multi_target_predictions.py"
@@ -377,7 +377,7 @@ else:
                         f"--dataset {predict_split}",
                         f"--data-dir {DATA_BIN_DIR}",
                         f"--checkpoint {BEST_CHECKPOINT_PATH}",
-                        f"--output-folder {PREDICTIONS_OUTPUT}",
+                        f"--output-folder {PREDICTIONS_PATH}",
                         max_example_str,
                     ]
                 ).split()

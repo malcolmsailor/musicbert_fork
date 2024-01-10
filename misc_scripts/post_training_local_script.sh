@@ -17,8 +17,6 @@ fi
 
 SLURM_IDS=("$@")
 
-SLURM_ID=$1
-
 # Step 1: Download predictions
 echo "Downloading predictions for SLURM_IDS: ${SLURM_IDS[@]}"
 set -x
@@ -77,6 +75,7 @@ for SLURM_ID in ${SLURM_IDS[@]}; do
 
     # 2.3 Run musicbert_synced_metrics.sh
     echo "Running musicbert_synced_metrics.sh for SLURM_ID: $SLURM_ID"
+    # TODO I should rename "collated_predictions"
     set -x
     bash "${MUSIC_DF_FOLDER}"/user_scripts/musicbert_synced_metrics.sh \
         ~/output/musicbert_collated_predictions/$SLURM_ID/test \
