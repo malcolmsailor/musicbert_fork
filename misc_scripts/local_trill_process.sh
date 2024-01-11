@@ -6,7 +6,7 @@ fi
 
 SLURM_IDS=("$@")
 
-# # Step 1: Download predictions
+# Step 1: Download predictions
 # echo "Downloading predictions for SLURM_IDS: ${SLURM_IDS[@]}"
 # set -x
 # bash /Users/malcolm/google_drive/python/data_science/musicbert_fork/misc_scripts/local_unlabeled_pred_download.sh ${SLURM_IDS[@]}
@@ -57,30 +57,30 @@ TRILLS_FOLDER=~/output/trills/labeled_dfs
 
 for SLURM_ID in ${SLURM_IDS[@]}; do
     output_folder="${OUTPUT_BASE_FOLDER}/${SLURM_ID}/test"
-    # metadata="${INPUT_BASE_FOLDER}/${SLURM_ID}/test/metadata_test.txt"
-    # predictions="${INPUT_BASE_FOLDER}/${SLURM_ID}/test/predictions"
+    metadata="${INPUT_BASE_FOLDER}/${SLURM_ID}/test/metadata_test.txt"
+    predictions="${INPUT_BASE_FOLDER}/${SLURM_ID}/test/predictions"
     # set -x
     # python "${COLLATE_SCRIPT}" metadata="${metadata}" predictions="${predictions}" \
     #     prediction_file_type=both txt_overlaps=midpoint h5_overlaps=weighted_average \
     #     output_folder="${output_folder}"
     # set +x
 
-    # mkdir -p "${output_folder}"
+    mkdir -p "${output_folder}"
 
     # for dictionary in "${INPUT_BASE_FOLDER}/${SLURM_ID}"/test/*_dictionary.txt; do
     #     set -x
     #     cp $dictionary "${output_folder}"/$(basename ${dictionary})
     #     set +x
     # done
-    # trill_folder="${TRILLS_FOLDER}/${SLURM_ID}"
-    # set -x
+    trill_folder="${TRILLS_FOLDER}/${SLURM_ID}"
+    set -x
     # python "${LABEL_SCRIPT}" \
     #     --config-file "${MUSIC_DF_FOLDER}/scripts/configs/label_trills1.yaml" \
     #     metadata_path="${output_folder}"/metadata_test.txt \
     #     labels_path="${output_folder}"/predictions/label.txt \
     #     output_folder="${trill_folder}"
 
-    # set +x
+    set +x
 done
 
 echo "Initializing trill_data venv..."
