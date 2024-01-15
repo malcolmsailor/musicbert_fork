@@ -11,8 +11,8 @@
 PREDICTIONS_BASE="/home/ms3682/project/saved_predictions/musicbert_unlabeled"
 CHECKPOINT_BASE="/home/ms3682/project/new_checkpoints/musicbert_fork"
 
-if [[ -z "$1" ]]; then
-    echo Usage: save_predictions.sh [run_name]
+if [[ -z "$2" ]]; then
+    echo Usage: save_predictions.sh [run_name] [quantize_data, quantize_data_ticks]
     echo "   We look for a checkpoint in"
     echo "       $CHECKPOINT_BASE/[run_name]/checkpoint_best.pt"
     echo "   We save predictions to "
@@ -21,6 +21,8 @@ if [[ -z "$1" ]]; then
 fi
 
 run_name="$1"
+data_base="$2"
+shift
 shift
 
 module load miniconda
@@ -32,7 +34,7 @@ python /home/ms3682/code/musicbert_fork/eval_scripts/save_multi_target_predictio
     --data-dir /home/ms3682/project/datasets/ycac_no_salami_slice_bin/ \
     --checkpoint "${CHECKPOINT_BASE}"/"${run_name}"/checkpoint_best.pt \
     --output-folder "${PREDICTIONS_BASE}/${run_name}/" \
-    --ref-dir ~/project/datasets/quantize_data_bin \
+    --ref-dir ~/project/datasets/"$data_base"_bin \
     "${@}"
 
 set +x
