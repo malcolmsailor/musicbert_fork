@@ -74,14 +74,15 @@ for SLURM_ID in ${SLURM_IDS[@]}; do
     # done
     trill_folder="${TRILLS_FOLDER}/${SLURM_ID}"
     set -x
-    # python "${LABEL_SCRIPT}" \
-    #     --config-file "${MUSIC_DF_FOLDER}/scripts/configs/label_trills1.yaml" \
-    #     metadata_path="${output_folder}"/metadata_test.txt \
-    #     labels_path="${output_folder}"/predictions/label.txt \
-    #     output_folder="${trill_folder}"
+    python "${LABEL_SCRIPT}" \
+        --config-file "${MUSIC_DF_FOLDER}/scripts/configs/label_trills1.yaml" \
+        metadata_path="${output_folder}"/metadata_test.txt \
+        labels_path="${output_folder}"/predictions/label.txt \
+        output_folder="${trill_folder}"
 
     set +x
 done
+exit
 
 echo "Initializing trill_data venv..."
 source /Users/malcolm/venvs/trill_data/bin/activate
