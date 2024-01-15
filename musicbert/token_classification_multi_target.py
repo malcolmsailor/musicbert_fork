@@ -457,6 +457,7 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
             default=-1,
             help="number of classes for each target (required)",
         )
+        parser.add_argument("--ref-dir", default=None)
         parser.add_argument("--target-names", nargs="+", default=None)
         parser.add_argument("--msdebug", action="store_true")
         parser.add_argument("--freeze-layers", type=int, default=-1)
@@ -556,10 +557,10 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         label_dicts = []
         for i in range(len(args.num_classes)):
             # load label dictionary
-            # TODO: (Malcolm 2023-09-15) double check the file-name format
+            ref_dir = args.ref_dir if args.ref_dir is not None else args.data
             label_dict = cls.load_dictionary(
                 args,
-                os.path.join(args.data, f"label{i}", f"dict.txt"),
+                os.path.join(ref_dir, f"label{i}", f"dict.txt"),
                 source=False,
             )
             label_dicts.append(label_dict)

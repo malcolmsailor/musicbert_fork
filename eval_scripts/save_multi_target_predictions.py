@@ -32,6 +32,13 @@ def parse_args():
         required=True,
         help="assumed to end in '_bin' and have an equivalent ending in '_raw' that contains 'metadata_test.txt'",
     )
+    parser.add_argument(
+        "--ref-dir",
+        default=None,
+        help="a directory that contains `target_names.json` as well as "
+        "`label[x]/dict.txt` files. If not provided, the value of "
+        "--data-dir is used.",
+    )
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--dataset", default="test", choices=("test", "valid", "train"))
     parser.add_argument("--batch-size", type=int, default=4)
@@ -46,8 +53,9 @@ def parse_args():
 
 def main():
     args = parse_args()
-    data_dir, checkpoint, output_folder_base = (
+    data_dir, ref_dir, checkpoint, output_folder_base = (
         args.data_dir,
+        args.ref_dir,
         args.checkpoint,
         args.output_folder,
     )
@@ -64,6 +72,9 @@ def main():
 
         sys.excepthook = custom_excepthook
 
+    if ref_dir is None:
+        ref_dir = data_dir
+
     output_folder = os.path.join(output_folder_base, args.dataset)
 
     if os.path.exists(output_folder):
@@ -73,7 +84,7 @@ def main():
     raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
     assert os.path.exists(raw_data_dir)
 
-    with open(os.path.join(data_dir, "target_names.json"), "r") as inf:
+    with open(os.path.join(ref_dir, "target_names.json"), "r") as inf:
         target_names = json.load(inf)
 
     musicbert = RobertaModel.from_pretrained(
@@ -82,6 +93,7 @@ def main():
         data_name_or_path=data_dir,
         user_dir=USER_DIR,
         task="musicbert_multitarget_sequence_tagging",
+        ref_dir=args.ref_dir,
     )
 
     musicbert.task.load_dataset(args.dataset)
