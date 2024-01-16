@@ -23,7 +23,7 @@ def shell(cmd):
 if not os.getenv("DEBUG_MUSICBERT", None):
     uncommited_changes = shell("git status --porcelain")
     if uncommited_changes:
-        print("There are uncommitted changes; commit them then rerun")
+        print("There are uncommitted changes; commit them then rerun (or set DEBUG_MUSICBERT env variable)")
         sys.exit(1)
 
 if shutil.which("nvidia-smi"):
@@ -68,6 +68,7 @@ parser.add_argument("--lr", type=float, default=PEAK_LR)
 parser.add_argument("--lr-scheduler", type=str, default="polynomial_decay")
 parser.add_argument("--checkpoint", "-c", default=DEFAULT_CHECKPOINT)
 parser.add_argument("--multitarget", action="store_true")
+parser.add_argument("--sequence-level", action="store_true")
 parser.add_argument("--dryrun", action="store_true")
 parser.add_argument("--skip-training", action="store_true")
 parser.add_argument("--skip-test-metrics", action="store_true")
@@ -88,6 +89,7 @@ parser.add_argument(
 )
 args, args_to_pass_on_to_train = parser.parse_known_args()
 
+assert not (args.sequence_level and args.multitarget)
 
 TOKENS_PER_SAMPLE = 8192
 
@@ -182,20 +184,32 @@ else:
                 ]
             )
 
-    TASK = (
-        "musicbert_multitarget_sequence_tagging"
-        if args.multitarget
-        else "musicbert_sequence_tagging"
-    )
+    if args.multitarget:
+        TASK = "musicbert_multitarget_sequence_tagging"
+        HEAD_NAME = "sequence_multitarget_tagging_head"
+        CRITERION = "multitarget_sequence_tagging"
+    elif args.sequence_level:
+        TASK = "sentence_prediction"
+        HEAD_NAME = "sequence_level_head"
+        CRITERION = "freezable_sentence_prediction"
+    else:
+        TASK = "musicbert_sequence_tagging"
+        HEAD_NAME = "sequence_tagging_head"
+        CRITERION = "sequence_tagging"
+    # TASK = (
+    #     "musicbert_multitarget_sequence_tagging"
+    #     if args.multitarget
+    #     else "musicbert_sequence_tagging"
+    # )
 
-    HEAD_NAME = (
-        "sequence_multitarget_tagging_head"
-        if args.multitarget
-        else "sequence_tagging_head"
-    )
-    CRITERION = (
-        "multitarget_sequence_tagging" if args.multitarget else "sequence_tagging"
-    )
+    # HEAD_NAME = (
+    #     "sequence_multitarget_tagging_head"
+    #     if args.multitarget
+    #     else "sequence_tagging_head"
+    # )
+    # CRITERION = (
+    #     "multitarget_sequence_tagging" if args.multitarget else "sequence_tagging"
+    # )
 
     SHARED_ARGS = (
         " ".join(
@@ -210,7 +224,7 @@ else:
                 f"--update-freq {UPDATE_FREQ}",
                 f"--criterion {CRITERION}",
                 f"--classification-head-name {HEAD_NAME}",
-                "--compound-token-ratio 8",
+                "--compound-token-ratio 8" if not args.sequence_level else "",
                 f"--num-classes {NUM_CLASSES}",
                 # These `reset` params seem to be required for fine-tuning
                 "--reset-optimizer",
@@ -242,8 +256,8 @@ else:
                 f"--num-workers {CPUS_ON_NODE}",
                 f"--lr-scheduler {args.lr_scheduler}",
                 f"--lr {args.lr}",
-                f"--example-network-inputs-to-save {args.num_sample_inputs}",
-                f"--example-network-inputs-path {EXAMPLE_INPUTS_PATH}",
+                f"--example-network-inputs-to-save {args.num_sample_inputs}" if not args.sequence_level else "",
+                f"--example-network-inputs-path {EXAMPLE_INPUTS_PATH}" if not args.sequence_level else "",
             ]
         ).split()
         + args_to_pass_on_to_train

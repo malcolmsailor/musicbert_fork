@@ -94,6 +94,7 @@ def main():
         user_dir=USER_DIR,
         task="musicbert_multitarget_sequence_tagging",
         ref_dir=args.ref_dir,
+        target_names=target_names,
     )
 
     musicbert.task.load_dataset(args.dataset)
