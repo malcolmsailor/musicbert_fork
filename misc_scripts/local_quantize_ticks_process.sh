@@ -31,44 +31,44 @@ LABEL_SCRIPT="${MUSIC_DF_FOLDER}/scripts/label_dfs.py"
 
 LABELED_DF_FOLDER=~/output/quantized/labeled_dfs
 
-# for SLURM_ID in ${SLURM_IDS[@]}; do
-#     if [ -d "$UNLABELED_INPUT_BASE_FOLDER"/"${SLURM_ID}" ]; then
-#         input_base_folder="$UNLABELED_INPUT_BASE_FOLDER"
-#         output_base_folder="$UNLABELED_OUTPUT_BASE_FOLDER"
-#     else
-#         input_base_folder="$LABELED_INPUT_BASE_FOLDER"
-#         output_base_folder="$LABELED_OUTPUT_BASE_FOLDER"
-#     fi
+for SLURM_ID in ${SLURM_IDS[@]}; do
+    if [ -d "$UNLABELED_INPUT_BASE_FOLDER"/"${SLURM_ID}" ]; then
+        input_base_folder="$UNLABELED_INPUT_BASE_FOLDER"
+        output_base_folder="$UNLABELED_OUTPUT_BASE_FOLDER"
+    else
+        input_base_folder="$LABELED_INPUT_BASE_FOLDER"
+        output_base_folder="$LABELED_OUTPUT_BASE_FOLDER"
+    fi
 
-#     output_folder="${output_base_folder}/${SLURM_ID}/test"
-#     metadata="${input_base_folder}/${SLURM_ID}/test/metadata_test.txt"
-#     predictions="${input_base_folder}/${SLURM_ID}/test/predictions"
+    output_folder="${output_base_folder}/${SLURM_ID}/test"
+    metadata="${input_base_folder}/${SLURM_ID}/test/metadata_test.txt"
+    predictions="${input_base_folder}/${SLURM_ID}/test/predictions"
 
-#     set -x
-#     python "${COLLATE_SCRIPT}" metadata="${metadata}" predictions="${predictions}" \
-#         prediction_file_type=both txt_overlaps=midpoint h5_overlaps=weighted_average \
-#         output_folder="${output_folder}"
-#     set +x
+    set -x
+    python "${COLLATE_SCRIPT}" metadata="${metadata}" predictions="${predictions}" \
+        prediction_file_type=both txt_overlaps=midpoint h5_overlaps=weighted_average \
+        output_folder="${output_folder}"
+    set +x
 
-#     mkdir -p "${output_folder}"
+    mkdir -p "${output_folder}"
 
-#     for dictionary in "${input_base_folder}/${SLURM_ID}"/test/*_dictionary.txt; do
-#         set -x
-#         cp $dictionary "${output_folder}"/$(basename ${dictionary})
-#         set +x
-#     done
+    for dictionary in "${input_base_folder}/${SLURM_ID}"/test/*_dictionary.txt; do
+        set -x
+        cp $dictionary "${output_folder}"/$(basename ${dictionary})
+        set +x
+    done
 
-#     quantized_folder="${LABELED_DF_FOLDER}/${SLURM_ID}"
+    quantized_folder="${LABELED_DF_FOLDER}/${SLURM_ID}"
 
-#     set -x
-#     python "${LABEL_SCRIPT}" \
-#         --config-file "${MUSIC_DF_FOLDER}/scripts/configs/label_quantize_ticks1.yaml" \
-#         metadata_path="${output_folder}"/metadata_test.txt \
-#         labels_path=["${output_folder}"/predictions/onset_delta_target_ticks.txt,"${output_folder}"/predictions/release_delta_target_ticks.txt] \
-#         output_folder="${quantized_folder}"
+    set -x
+    python "${LABEL_SCRIPT}" \
+        --config-file "${MUSIC_DF_FOLDER}/scripts/configs/label_quantize_ticks1.yaml" \
+        metadata_path="${output_folder}"/metadata_test.txt \
+        labels_path=["${output_folder}"/predictions/onset_delta_target_ticks.txt,"${output_folder}"/predictions/release_delta_target_ticks.txt] \
+        output_folder="${quantized_folder}"
 
-#     set +x
-# done
+    set +x
+done
 
 echo "Initializing quantize_data venv..."
 source /Users/malcolm/venvs/quantize_data/bin/activate
@@ -88,7 +88,7 @@ for SLURM_ID in ${SLURM_IDS[@]}; do
     set -x
     python "${QUANTIZE_DATA_FOLDER}"/scripts/apply_delta_ticks_quantization.py \
         "${LABELED_DF_FOLDER}"/"${SLURM_ID}" \
-        "${QUANTIZED_DF_FOLDER}"/"${SLURM_ID}"
+        "${QUANTIZED_DF_FOLDER}"/"${SLURM_ID}" --debug
     python "${MUSIC_DF_FOLDER}"/scripts/csvs_to_midi.py \
         "${QUANTIZED_DF_FOLDER}"/"${SLURM_ID}" \
         "${MIDI_FOLDER}"/"${SLURM_ID}"
