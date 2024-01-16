@@ -31,7 +31,7 @@ conda activate newbert
 set -x
 
 python /home/ms3682/code/musicbert_fork/eval_scripts/save_multi_target_predictions.py \
-    --data-dir /home/ms3682/project/datasets/ycac_no_salami_slice_bin/ \
+    --data-dir /home/ms3682/project/datasets/ycac_unquantized_bin/ \
     --checkpoint "${CHECKPOINT_BASE}"/"${run_name}"/checkpoint_best.pt \
     --output-folder "${PREDICTIONS_BASE}/${run_name}/" \
     --ref-dir ~/project/datasets/"$data_base"_bin \
