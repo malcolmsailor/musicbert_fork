@@ -139,8 +139,7 @@ def main():
 
             # Enumerate over batch dimension
             for logit_i, example in enumerate(logits, start=i):
-                # Trim start and end tokens:
-                data = example.detach().cpu().numpy()[1:-1]
+                data = example.detach().cpu().numpy()
 
                 out_hdf.create_dataset(f"logits_{logit_i}", data=data)
 
