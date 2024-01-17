@@ -6,18 +6,18 @@ fi
 
 SLURM_IDS=("$@")
 
-# set -e
+set -e
 
-# # Step 2: See synced metrics
-# # 2.1 Initialize music_df venv
-# echo "Initializing music_df venv..."
-# source /Users/malcolm/venvs/music_df/bin/activate
+# Step 2: See synced metrics
+# 2.1 Initialize music_df venv
+echo "Initializing music_df venv..."
+source /Users/malcolm/venvs/music_df/bin/activate
 
-# # Check if venv activation was successful
-# if [ $? -ne 0 ]; then
-#     echo "Failed to activate music_df venv."
-#     exit 1
-# fi
+# Check if venv activation was successful
+if [ $? -ne 0 ]; then
+    echo "Failed to activate music_df venv."
+    exit 1
+fi
 
 MUSIC_DF_FOLDER="/Users/malcolm/google_drive/python/malmus/music_df"
 
@@ -65,7 +65,7 @@ for SLURM_ID in ${SLURM_IDS[@]}; do
         --config-file "${MUSIC_DF_FOLDER}/scripts/configs/label_quantize_ticks1.yaml" \
         metadata_path="${output_folder}"/metadata_test.txt \
         labels_path=["${output_folder}"/predictions/onset_delta_target_ticks.txt,"${output_folder}"/predictions/release_delta_target_ticks.txt] \
-        output_folder="${quantized_folder}"
+        output_folder="${quantized_folder}" debug=True
 
     set +x
 done
