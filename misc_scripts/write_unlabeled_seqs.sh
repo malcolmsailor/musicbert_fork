@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH -o /home/ms3682/slurm_output/%j.out # Note that directory will not be created if it does not exist; also, ~ expansion doesn't seem to work
 
-if [[ -z "$4" ]]; then
+if [[ -z "$5" ]]; then
     echo Error: 4 positional arguments required.
     echo Usage: bash write_seqs.sh [src_data_dir_or_zip] [ref_dir] [output_dir] [n_workers] [-o]
     exit 1
