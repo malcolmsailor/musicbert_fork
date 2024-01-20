@@ -36,6 +36,7 @@ def parse_args():
     parser.add_argument("--compound-token-ratio", type=int, default=8)
     parser.add_argument("--label-dictionary-path")
     parser.add_argument("--msdebug", action="store_true")
+    parser.add_argument("--overwrite", "-o", action="store_true")
     parser.add_argument(
         "--target-names",
         help="Path to target names JSON file, otherwise we look in --data-dir "
@@ -70,7 +71,10 @@ def main():
     output_folder = os.path.join(output_folder_base, args.dataset)
 
     if os.path.exists(output_folder):
-        raise ValueError(f"Output folder {output_folder} already exists")
+        if args.overwrite:
+            shutil.rmtree(output_folder)
+        else:
+            raise ValueError(f"Output folder {output_folder} already exists")
 
     assert data_dir.rstrip(os.path.sep).endswith("_bin")
     raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
