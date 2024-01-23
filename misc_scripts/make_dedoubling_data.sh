@@ -1,4 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
+#SBATCH --job-name=write_dedoubling_data
+#SBATCH --time=12:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --cpus-per-task=16
+#SBATCH -o /home/ms3682/slurm_output/%j.out # Note that directory will not be created if it does not exist; also, ~ expansion doesn't seem to work
 
 set -e
 VENV=write_chord_tones_seqs
