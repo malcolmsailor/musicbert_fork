@@ -131,6 +131,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         parser.add_argument('--compound-token-ratio', type=int, default=1)
         parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
         parser.add_argument('--example-network-inputs-path', type=str, default=None)
+        parser.add_argument('--target-dropout', type=float, default=0.0)
         # fmt: on
 
     def save_inputs(self, sample):
@@ -224,8 +225,19 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         masked_preds = np.concatenate(masked_preds_list)
         masked_targets = np.concatenate(masked_targets_list)
 
+        if not self.target_dropout:
+            loss = torch.stack(losses).mean()
+        else:
+            loss_tensor = torch.stack(losses)
+
+            rand_sample = torch.rand_like(loss_tensor)
+            loss_mask = rand_sample <= self.target_dropout
+            if not loss_mask.any():
+                loss_mask[torch.randint(loss_mask.shape[0], (1,))] = True
+            loss_subset = torch.masked_select(loss_tensor, loss_mask)
+            loss = loss_subset.mean()
+
         # TODO: (Malcolm 2023-09-15) allow weighting loss?
-        loss = torch.stack(losses).mean()
 
         logging_output.update(
             {
@@ -483,6 +495,9 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
 
             sys.excepthook = custom_excepthook
         super().__init__(args)
+
+        self.target_dropout = args.target_dropout
+
         self.dictionary = data_dictionary
         self._label_dictionaries = tuple(label_dictionaries)
 

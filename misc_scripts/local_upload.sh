@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo DEPRECATED IN FAVOR OF VERSION IN dissertation_code
+
 data_folder=$1
 
 if [[ -z $data_folder ]]; then
