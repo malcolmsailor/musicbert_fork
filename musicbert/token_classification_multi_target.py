@@ -226,7 +226,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         masked_preds = np.concatenate(masked_preds_list)
         masked_targets = np.concatenate(masked_targets_list)
 
-        if not self.target_dropout:
+        if not model.training or not self.target_dropout:
             loss = torch.stack(losses).mean()
         else:
             loss_tensor = torch.stack(losses)
