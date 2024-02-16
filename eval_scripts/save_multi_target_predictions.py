@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument("--compound-token-ratio", type=int, default=8)
     parser.add_argument("--msdebug", action="store_true")
     parser.add_argument("--overwrite", "-o", action="store_true")
-    parser.add_argument("--ignore-specials", type=int, default=0)
+    parser.add_argument("--ignore-specials", type=int, default=4)
 
     args = parser.parse_args()
     return args
@@ -187,6 +187,9 @@ def main():
         os.path.join(raw_data_dir, f"metadata_{args.dataset}.txt"),
         os.path.join(output_folder, f"metadata_{args.dataset}.txt"),
     )
+    if args.ignore_specials:
+        with open(os.path.join(output_folder, "num_ignored_specials.txt"), "w") as outf:
+            outf.write(str(args.ignore_specials))
 
 
 if __name__ == "__main__":
