@@ -1,3 +1,7 @@
+"""
+Example testing command:
+python eval_scripts/save_multi_target_predictions.py --data-dir ~/project/datasets/chord_tones/fairseq/many_target_bin --checkpoint ~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt --output-folder ~/tmp/mout --msdebug --ignore-specials 4 --overwrite --max-examples 2
+"""
 import argparse
 import json
 import logging
@@ -55,6 +59,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+
     data_dir, ref_dir, checkpoint, output_folder_base = (
         args.data_dir,
         args.ref_dir,
