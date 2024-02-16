@@ -47,6 +47,7 @@ def parse_args():
     parser.add_argument("--compound-token-ratio", type=int, default=8)
     parser.add_argument("--msdebug", action="store_true")
     parser.add_argument("--overwrite", "-o", action="store_true")
+    parser.add_argument("--ignore-specials", type=int, default=0)
 
     args = parser.parse_args()
     return args
@@ -152,6 +153,10 @@ def main():
                 for logit_i, example in enumerate(logits, start=i):
                     # Trim start and end tokens:
                     data = example.detach().cpu().numpy()[1:-1]
+
+                    # Don't save specials
+                    if args.ignore_specials:
+                        data = data[:, args.ignore_specials :]
 
                     out_hdfs[target_name].create_dataset(f"logits_{logit_i}", data=data)
 
