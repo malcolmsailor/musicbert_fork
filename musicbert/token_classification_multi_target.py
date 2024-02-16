@@ -117,6 +117,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             0, self.task.args.example_network_inputs_to_save
         )
         self.example_network_inputs_path = self.task.args.example_network_inputs_path
+        self.target_dropout = self.task.args.target_dropout
         if self.remaining_inputs_to_save:
             assert (
                 self.example_network_inputs_path is not None
@@ -225,13 +226,13 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         masked_preds = np.concatenate(masked_preds_list)
         masked_targets = np.concatenate(masked_targets_list)
 
-        if not self.target_dropout:
+        if not model.training or not self.target_dropout:
             loss = torch.stack(losses).mean()
         else:
             loss_tensor = torch.stack(losses)
 
             rand_sample = torch.rand_like(loss_tensor)
-            loss_mask = rand_sample <= self.target_dropout
+            loss_mask = rand_sample > self.target_dropout
             if not loss_mask.any():
                 loss_mask[torch.randint(loss_mask.shape[0], (1,))] = True
             loss_subset = torch.masked_select(loss_tensor, loss_mask)
@@ -495,8 +496,6 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
 
             sys.excepthook = custom_excepthook
         super().__init__(args)
-
-        self.target_dropout = args.target_dropout
 
         self.dictionary = data_dictionary
         self._label_dictionaries = tuple(label_dictionaries)
