@@ -171,11 +171,14 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         if self.remaining_inputs_to_save:
             self.save_inputs(sample)
 
+
         multi_logits, _ = model(
             **sample["net_input"],
             features_only=True,
+            return_all_hiddens=False,
             classification_head_name=self.classification_head_name,
         )
+
         adjusted_ntokens = sample["ntokens"] // self.compound_token_ratio
         nsentences = sample["target0"].size(0)
         sample_size = adjusted_ntokens - nsentences  # number of tokens without eos
@@ -511,6 +514,7 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         else:
             self._max_positions = args.max_positions
         args.tokens_per_sample = self._max_positions  # tuple[int, int] ?
+        
         # The code from the PR seems to assume that the task has an `args attribute`
         self.args = args
         self.num_targets = len(args.num_classes)

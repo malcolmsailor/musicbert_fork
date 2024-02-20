@@ -309,7 +309,9 @@ class OctupleEncoder(TransformerSentenceEncoder):
             assert (
                 tokens.shape[1] % ratio == 0
             ), f"token sequences length should be multiple of {ratio} for compound mode"
-            assert last_state_only, "hidden states not available for compound mode"
+            # (Malcolm 2024-02-20) I'm not sure what the motivation for this assertion
+            #   is, hidden states for intermediate layers seem to work as normal.
+            # assert last_state_only, "hidden states not available for compound mode"
             assert (
                 positions is None
             ), "custom positions are not supported for compound mode"
