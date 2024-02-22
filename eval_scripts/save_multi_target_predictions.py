@@ -1,7 +1,13 @@
 """
 Example testing command:
 python eval_scripts/save_multi_target_predictions.py --data-dir ~/project/datasets/chord_tones/fairseq/many_target_bin --checkpoint ~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt --output-folder ~/tmp/mout --msdebug --ignore-specials 4 --overwrite --max-examples 2
+python eval_scripts/save_multi_target_predictions.py \
+    --data-dir ~/output/test_data/chord_tones_bin \
+    --checkpoint ~/output/musicbert_checkpoints/32702693/checkpoint_best.pt \
+    --output-folder ~/tmp/mout --msdebug --ignore-specials 4 \
+    --overwrite --max-examples 2
 """
+
 import argparse
 import json
 import logging
@@ -23,8 +29,6 @@ SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
 PARENT_DIR = os.path.join(SCRIPT_DIR, "..")
 
 sys.path.append(PARENT_DIR)
-
-# from musicbert._musicbert import MusicBERTModel
 
 USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 

@@ -2,7 +2,6 @@
 https://github.com/facebookresearch/fairseq/pull/1709/files
 """
 
-
 import json
 import logging
 import math
@@ -170,7 +169,6 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
 
         if self.remaining_inputs_to_save:
             self.save_inputs(sample)
-
 
         multi_logits, _ = model(
             **sample["net_input"],
@@ -514,7 +512,7 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         else:
             self._max_positions = args.max_positions
         args.tokens_per_sample = self._max_positions  # tuple[int, int] ?
-        
+
         # The code from the PR seems to assume that the task has an `args attribute`
         self.args = args
         self.num_targets = len(args.num_classes)
