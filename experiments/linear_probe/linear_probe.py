@@ -209,7 +209,7 @@ def get_y_and_y_hat(
 ):
     samples = [ds[j] for j in indices]
     labels = [labels_ds[j] for j in indices]
-    batch_dict = ds.collater(samples).to(DEVICE)
+    batch_dict = ds.collater(samples)
     batch_input = batch_dict["net_input"]["src_tokens"].to(DEVICE)
     y = labels_ds.collater(labels).to(DEVICE)
     inner_states, sentence_rep = encoder(batch_input)
