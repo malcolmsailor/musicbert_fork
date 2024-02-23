@@ -15,7 +15,7 @@ import shutil
 import sys
 import time
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -30,13 +30,10 @@ from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-import wandb
-
 # from musicbert._musicbert import OctupleEncoder
 
 THIS_PATH = os.path.realpath(__file__)
 DIRNAME, BASENAME = os.path.split(THIS_PATH)
-WANDB_PROJECT = "dissonance-linear-probe"
 
 
 def take_snapshot():
@@ -109,9 +106,6 @@ class Config:
     early_stop_wait: int = 10
     early_stop_tolerance: float = 1e-2
     classifier_config: ClassifierConfig = field(default_factory=ClassifierConfig)
-
-    wandb_watch_freq: int = 50
-    wandb_log_freq: int = 25
 
 
 class EarlyStopper:
@@ -240,7 +234,6 @@ def train(
     encoder.eval()
     result = "timeout"
     training_step = 0
-    wandb.watch(classifier, log="all", log_freq=train_config.wandb_watch_freq)
 
     try:
         for epoch_i in range(train_config.n_epochs):
@@ -276,11 +269,6 @@ def train(
                 pbar.set_postfix({"loss": avg_list(metrics["loss"]["train"])})
                 training_step += 1
                 steps["train"].append(training_step)
-                if training_step % train_config.wandb_log_freq == 0:
-                    wandb.log(
-                        {"epoch": epoch_i, "train_loss": loss.item()},
-                        step=training_step,
-                    )
 
             classifier.eval()
             valid_ds = datasets["valid"]
@@ -309,9 +297,6 @@ def train(
                     valid_loss.append(loss.item())
                     pbar.set_postfix({"valid_loss": avg_list(valid_loss)})
             epoch_valid_loss = avg_list(valid_loss)
-            wandb.log(
-                {"epoch": epoch_i, "valid_loss": epoch_valid_loss}, step=training_step
-            )
             metrics["loss"]["valid"].append(epoch_valid_loss)
             steps["valid"].append(training_step)
             early_stopper.update(epoch_valid_loss)
@@ -469,8 +454,6 @@ def main():
     save = True
 
     config = read_config_oc(Config)
-    wandb.login()
-    wandb.init(project=WANDB_PROJECT, config=asdict(config))
 
     (
         encoder,

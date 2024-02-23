@@ -110,7 +110,7 @@ class Config:
     early_stop_tolerance: float = 1e-2
     classifier_config: ClassifierConfig = field(default_factory=ClassifierConfig)
 
-    wandb_watch_freq: int = 50
+    wandb_watch_freq: int = 250
     wandb_log_freq: int = 25
 
 
