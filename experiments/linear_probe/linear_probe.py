@@ -404,6 +404,7 @@ def init(config: Config):
     musicbert.task.load_dataset("valid")
     # musicbert.task.load_dataset("test")
     classifier = Classifier(n_tokens, config.classifier_config)
+    classifier.to(DEVICE)
     optim = torch.optim.Adam(classifier.parameters())
 
     datasets = musicbert.task.datasets
