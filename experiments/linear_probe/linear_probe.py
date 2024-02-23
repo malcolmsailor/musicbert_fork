@@ -387,12 +387,11 @@ def init(config: Config):
         elif not symbol.startswith("madeupword"):
             n_tokens += 1
 
-    train_config = Config()
-    if train_config.loss_weights is not None:
+    if config.loss_weights is not None:
         loss_weights = []
         for i in range(n_tokens):
             symbol = label_dict.symbols[n_specials + i]
-            loss_weights.append(train_config.loss_weights.get(symbol, 1.0))
+            loss_weights.append(config.loss_weights.get(symbol, 1.0))
         loss_weights = torch.tensor(loss_weights)
     else:
         loss_weights = None
@@ -417,7 +416,7 @@ def init(config: Config):
         optim,
         datasets,
         labels,
-        train_config,
+        config,
         n_specials,
         loss_weights,
     )
