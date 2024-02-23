@@ -1,8 +1,15 @@
 """
+Local command:
 python experiments/linear_probe/linear_probe.py \
     data_dir=~/output/test_data/labeled_chorales_bin \
     checkpoint=~/output/musicbert_checkpoints/32702693/checkpoint_best.pt \
     ref_dir=~/output/test_data/chord_tones_bin \
+    debug=True
+Grace command:
+python experiments/linear_probe/linear_probe.py \
+    data_dir=~/project/datasets/labeled_bach_chorales_bin \
+    checkpoint=~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt \
+    ref_dir=~/project/datasets/chord_tones/fairseq/many_target_bin \
     debug=True
 """
 
@@ -64,6 +71,10 @@ SEED = 44
 random.seed(SEED)
 torch.manual_seed(SEED)
 
+if torch.cuda.is_available():
+    DEVICE = "cuda"
+else:
+    DEVICE = "cpu"
 
 # def parse_args():
 #     parser = argparse.ArgumentParser()
@@ -198,8 +209,8 @@ def get_y_and_y_hat(
 ):
     samples = [ds[j] for j in indices]
     labels = [labels_ds[j] for j in indices]
-    batch = ds.collater(samples)
-    y = labels_ds.collater(labels)
+    batch = ds.collater(samples).to(DEVICE)
+    y = labels_ds.collater(labels).to(DEVICE)
     inner_states, sentence_rep = encoder(batch["net_input"]["src_tokens"])
     probe_states = inner_states[train_config.layer_to_probe]
     probe_states = rearrange(probe_states, "seq batch d_model -> batch seq d_model")
@@ -242,10 +253,14 @@ def train(
     training_step = 0
     wandb.watch(classifier, log="all", log_freq=train_config.wandb_watch_freq)
 
+    train_ds = datasets["train"]
+    train_labels = label_datasets["train"]
+
+    valid_ds = datasets["valid"]
+    valid_labels = label_datasets["valid"]
+
     try:
         for epoch_i in range(train_config.n_epochs):
-            train_ds = datasets["train"]
-            train_labels = label_datasets["train"]
             indices = list(range(len(train_ds)))
             if shuffle:
                 random.shuffle(indices)
@@ -283,8 +298,6 @@ def train(
                     )
 
             classifier.eval()
-            valid_ds = datasets["valid"]
-            valid_labels = label_datasets["valid"]
             pbar = tqdm(range(0, len(valid_ds), train_config.batch_size))
             pbar.set_description(f"Epoch {epoch_i + 1}/{train_config.n_epochs} valid")
             valid_loss = []
