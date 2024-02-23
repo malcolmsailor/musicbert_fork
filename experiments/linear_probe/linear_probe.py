@@ -260,6 +260,9 @@ def train(
     valid_ds = datasets["valid"]
     valid_labels = label_datasets["valid"]
 
+    if loss_weights is not None:
+        loss_weights = loss_weights.to(DEVICE)
+
     try:
         for epoch_i in range(train_config.n_epochs):
             indices = list(range(len(train_ds)))
