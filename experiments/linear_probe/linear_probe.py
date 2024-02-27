@@ -77,10 +77,8 @@ SWEEP_CONFIG = {
         "layer_to_probe": {"min": 7, "max": 12},
         "n_layers": {"min": 2, "max": 8},
         "hidden_dim": {"values": [8, 16, 32, 64, 128]},
-        "loss_weights": {
-            "N": {"min": 1.0, "max": 8.0, "distribution": "log_uniform"},
-            "Z": {"min": 1.0, "max": 16.0, "distribution": "log_uniform"},
-        },
+        "N_loss_weight": {"min": 1.0, "max": 8.0, "distribution": "log_uniform"},
+        "Z_loss_weight": {"min": 1.0, "max": 16.0, "distribution": "log_uniform"},
         "lr": {"min": 1e-4, "max": 1e-1, "distribution": "log_uniform"},
     },
 }
@@ -151,9 +149,12 @@ class Config:
     n_epochs: int = 10
     batch_size: int = 4
     layer_to_probe: int = 12
-    loss_weights: Optional[Dict[str, float]] = field(
-        default_factory=lambda: {"N": 2.0, "Z": 4.0}
-    )
+
+    N_loss_weight: float = 2.0
+    Z_loss_weight: float = 4.0
+    # loss_weights: Optional[Dict[str, float]] = field(
+    #     default_factory=lambda: {"N": 2.0, "Z": 4.0}
+    # )
     early_stop_wait: int = 10
     early_stop_tolerance: float = 1e-2
     # classifier_config: ClassifierConfig = field(default_factory=ClassifierConfig)
@@ -175,6 +176,10 @@ class Config:
             self.checkpoint = os.path.expanduser(self.checkpoint)
         if self.ref_dir is not None:
             self.ref_dir = os.path.expanduser(self.ref_dir)
+
+    @property
+    def loss_weights(self):
+        return {"N": self.N_loss_weight, "Z": self.Z_loss_weight}
 
 
 class EarlyStopper:
