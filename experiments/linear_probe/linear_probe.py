@@ -428,10 +428,16 @@ def train(
             epoch_valid_loss = avg_list(valid_loss)
             wandb.log({"valid_loss": epoch_valid_loss}, step=training_step)
             y_true = np.concatenate(
-                [rearrange(y, "... -> (...)") for y in y_true_accumulator]
+                [
+                    rearrange(y.detach().cpu(), "... -> (...)")
+                    for y in y_true_accumulator
+                ]
             )
             y_pred = np.concatenate(
-                [rearrange(y, "... -> (...)") for y in y_pred_accumulator]
+                [
+                    rearrange(y.detach().cpu(), "... -> (...)")
+                    for y in y_pred_accumulator
+                ]
             )
             log_metrics(y_true, y_pred, training_step, kind="valid")
 
