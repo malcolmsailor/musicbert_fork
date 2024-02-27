@@ -33,6 +33,11 @@ cd $(dirname "$0")
 # echo $sweep_id
 # sleep 5 # I'm not sure sleeping is necessary but it seems prudent
 
+# Concerning these env vars see https://github.com/wandb/wandb/issues/2420#issuecomment-888480380
+export WANDB_CONFIG_DIR=/tmp/
+export WANDB_DIR=/tmp/
+export WANDB_CACHE_DIR=/tmp/
+
 wandb agent --count $count $sweep_cmd
 
 
