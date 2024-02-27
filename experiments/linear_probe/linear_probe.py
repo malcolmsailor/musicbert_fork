@@ -423,7 +423,7 @@ def train(
                     )
                     valid_loss.append(loss.item())
                     pbar.set_postfix({"valid_loss": avg_list(valid_loss)})
-                    y_true_accumulator.append(y.detach.cpu().numpy())
+                    y_true_accumulator.append(y.detach().cpu().numpy())
                     y_pred_accumulator.append(
                         y_hat.argmax(dim=-1).detach().cpu().numpy()
                     )
