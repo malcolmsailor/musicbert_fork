@@ -29,6 +29,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import yaml
 from dacite import from_dict
 from einops import rearrange, reduce, repeat
 from fairseq.data import Dictionary, RightPadDataset, data_utils
@@ -98,11 +99,8 @@ else:
 #     return args
 
 
-@dataclass
-class ClassifierConfig:
-    n_layers: int = 2
-    input_dim: int = 768
-    hidden_dim: int = 16
+# @dataclass
+# class ClassifierConfig:
 
 
 @dataclass
@@ -119,10 +117,15 @@ class Config:
     )
     early_stop_wait: int = 10
     early_stop_tolerance: float = 1e-2
-    classifier_config: ClassifierConfig = field(default_factory=ClassifierConfig)
+    # classifier_config: ClassifierConfig = field(default_factory=ClassifierConfig)
 
     wandb_watch_freq: int = 50
     wandb_log_freq: int = 25
+
+    # classifier config
+    n_layers: int = 2
+    input_dim: int = 768
+    hidden_dim: int = 16
 
 
 class EarlyStopper:
@@ -152,7 +155,7 @@ def classifier_layer(in_dim, out_dim):
 
 
 class Classifier(nn.Module):
-    def __init__(self, output_dim, config: ClassifierConfig):
+    def __init__(self, output_dim, config: Config):
         super().__init__()
         assert config.n_layers >= 2
         self.layers = nn.Sequential(
@@ -172,7 +175,7 @@ class Classifier(nn.Module):
         return x
 
 
-def read_config_oc(config_cls):
+def read_config_oc(config_cls, yaml_path=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--config-path", default=None)
     # remaining passed through to omegaconf
@@ -181,6 +184,8 @@ def read_config_oc(config_cls):
 
     configs = []
     assert args.config_path is not None or remaining is not None
+    if yaml_path is not None:
+        configs.append(OmegaConf.load(yaml_path))
     if args.config_path is not None:
         configs.append(OmegaConf.load(args.config_path))
     if remaining is not None:
@@ -296,10 +301,7 @@ def train(
                 training_step += 1
                 steps["train"].append(training_step)
                 if training_step % train_config.wandb_log_freq == 0:
-                    wandb.log(
-                        {"epoch": epoch_i, "train_loss": loss.item()},
-                        step=training_step,
-                    )
+                    wandb.log({"train_loss": loss.item()}, step=training_step)
 
             classifier.eval()
             pbar = tqdm(range(0, len(valid_ds), train_config.batch_size))
@@ -326,9 +328,7 @@ def train(
                     valid_loss.append(loss.item())
                     pbar.set_postfix({"valid_loss": avg_list(valid_loss)})
             epoch_valid_loss = avg_list(valid_loss)
-            wandb.log(
-                {"epoch": epoch_i, "valid_loss": epoch_valid_loss}, step=training_step
-            )
+            wandb.log({"valid_loss": epoch_valid_loss}, step=training_step)
             metrics["loss"]["valid"].append(epoch_valid_loss)
             steps["valid"].append(training_step)
             early_stopper.update(epoch_valid_loss)
@@ -405,7 +405,7 @@ def init(config: Config):
     musicbert.task.load_dataset("train")
     musicbert.task.load_dataset("valid")
     # musicbert.task.load_dataset("test")
-    classifier = Classifier(n_tokens, config.classifier_config)
+    classifier = Classifier(n_tokens, config)
     classifier.to(DEVICE)
     optim = torch.optim.Adam(classifier.parameters())
 
@@ -480,52 +480,80 @@ def save_checkpoint(model, run_id):
     torch.save(obj=model.state_dict(), f=checkpoint_path)
 
 
-def main():
+# def objective(wandb_config):
+#     config: Config = from_dict(data_class=Config, data=wandb_config)
+
+#     (
+#         encoder,
+#         classifier,
+#         optim,
+#         datasets,
+#         labels,
+#         train_config,
+#         n_specials,
+#         loss_weights,
+#     ) = init(config)
+
+#     train(
+#         encoder,
+#         classifier,
+#         optim,
+#         datasets,
+#         labels,
+#         train_config,
+#         n_specials,
+#         loss_weights,
+#     )
+
+
+def run_as_script():
     run_id = int(time.time())
 
     save = True
 
-    config = read_config_oc(Config)
+    temp_config = read_config_oc(Config)
     wandb.login()
-    wandb.init(project=WANDB_PROJECT, config=asdict(config))
+    with wandb.init(project=WANDB_PROJECT, config=asdict(temp_config)):  # type:ignore
+        config_dict = wandb.config
+        config = from_dict(data_class=Config, data=config_dict)
 
-    (
-        encoder,
-        classifier,
-        optim,
-        datasets,
-        labels,
-        train_config,
-        n_specials,
-        loss_weights,
-    ) = init(config)
+        (
+            encoder,
+            classifier,
+            optim,
+            datasets,
+            labels,
+            train_config,
+            n_specials,
+            loss_weights,
+        ) = init(config)
 
-    (
-        result,
-        save,
-        metrics,
-        steps,
-    ) = train(
-        encoder,
-        classifier,
-        optim,
-        datasets,
-        labels,
-        train_config,
-        n_specials,
-        loss_weights,
-    )
-
-    if save:
-        save_snapshot(run_id, SNAPSHOT)
-        plot_metrics(
-            run_id,
+        (
             result,
+            save,
             metrics,
             steps,
+        ) = train(
+            encoder,
+            classifier,
+            optim,
+            datasets,
+            labels,
+            train_config,
+            n_specials,
+            loss_weights,
         )
-        save_checkpoint(classifier, run_id)
+
+        if save:
+            save_snapshot(run_id, SNAPSHOT)
+            plot_metrics(
+                run_id,
+                result,
+                metrics,
+                steps,
+            )
+            save_checkpoint(classifier, run_id)
 
 
 if __name__ == "__main__":
-    main()
+    run_as_script()
