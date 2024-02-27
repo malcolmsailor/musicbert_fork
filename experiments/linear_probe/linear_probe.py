@@ -14,16 +14,24 @@ python experiments/linear_probe/linear_probe.py \
     ref_dir=~/project/datasets/chord_tones/fairseq/many_target_bin \
     debug=True
 
-Wandb sweep:
-    wandb sweep --project sweep-test linear_probe_config.yaml
-Then:
-    wandb agent msailor/sweep-test/v1uhkjcp
+    
+Below is defunct. New way to do a sweep is to add the --conduct-sweep argument.
+python experiments/linear_probe/linear_probe.py \
+    data_dir=~/project/datasets/labeled_bach_chorales_bin \
+    checkpoint=~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt \
+    ref_dir=~/project/datasets/chord_tones/fairseq/many_target_bin \
+    --conduct-sweep
 
-Or:
-[ms3682@r602u03n01.grace musicbert_fork]$ module load miniconda
-[ms3682@r602u03n01.grace musicbert_fork]$ conda activate newbert
-(newbert)[ms3682@r602u03n01.grace musicbert_fork]$ wandb sweep --project sweep-test experiments/linear_probe/linear_probe_config.yaml 
-(newbert)[ms3682@r602u03n01.grace musicbert_fork]$ bash launch_sbatch.sh experiments/linear_probe/linear_probe_slurm_job.sh msailor/sweep-test/hxal8uw5 100
+# Wandb sweep:
+#     wandb sweep --project sweep-test linear_probe_config.yaml
+# Then:
+#     wandb agent msailor/sweep-test/v1uhkjcp
+
+# Or:
+# [ms3682@r602u03n01.grace musicbert_fork]$ module load miniconda
+# [ms3682@r602u03n01.grace musicbert_fork]$ conda activate newbert
+# (newbert)[ms3682@r602u03n01.grace musicbert_fork]$ wandb sweep --project sweep-test experiments/linear_probe/linear_probe_config.yaml 
+# (newbert)[ms3682@r602u03n01.grace musicbert_fork]$ bash launch_sbatch.sh experiments/linear_probe/linear_probe_slurm_job.sh msailor/sweep-test/hxal8uw5 100
 """
 
 import argparse
@@ -35,6 +43,7 @@ import shutil
 import sys
 import time
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
@@ -59,6 +68,17 @@ import wandb
 THIS_PATH = os.path.realpath(__file__)
 DIRNAME, BASENAME = os.path.split(THIS_PATH)
 WANDB_PROJECT = "dissonance-linear-probe"
+
+SWEEP_CONFIG = {
+    "method": "bayes",
+    "metric": {"goal": "maximize", "name": "valid_f1_macro"},
+    "name": f"bayes-sweep-{int(time.time())}",
+    "parameters": {
+        "layer_to_probe": {"min": 7, "max": 12},
+        "n_layers": {"min": 2, "max": 8},
+        "hidden_dim": {"values": [8, 16, 32, 64, 128]},
+    },
+}
 
 
 def take_snapshot():
@@ -200,6 +220,7 @@ class Classifier(nn.Module):
 def read_config_oc(config_cls, yaml_path=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--config-path", default=None)
+    parser.add_argument("--conduct-sweep", action="store_true")
     # remaining passed through to omegaconf
 
     args, remaining = parser.parse_known_args()
@@ -258,7 +279,7 @@ def log_scalar(key, val, step=None):
     wandb.log({key: val}, step=step)
 
 
-def log_metrics(y_true, y_pred, step, labels=("x", "P", "S")):
+def log_metrics(y_true, y_pred, step, labels=("x", "P", "S"), kind=""):
     no_specials_mask = y_true >= 0  # type:ignore
     y_true = y_true[no_specials_mask]
     y_pred = y_pred[no_specials_mask]
@@ -271,9 +292,9 @@ def log_metrics(y_true, y_pred, step, labels=("x", "P", "S")):
         ) = sklearn.metrics.precision_recall_fscore_support(
             y_true, y_pred, average=average, zero_division=0.0  # type:ignore
         )
-        log_scalar(f"precision_{average}", precision, step)
-        log_scalar(f"recall_{average}", recall, step)
-        log_scalar(f"f1_{average}", f1, step)
+        log_scalar(f"{f'{kind}_' if kind else ''}precision_{average}", precision, step)
+        log_scalar(f"{f'{kind}_' if kind else ''}recall_{average}", recall, step)
+        log_scalar(f"{f'{kind}_' if kind else ''}f1_{average}", f1, step)
 
     confused = sklearn.metrics.confusion_matrix(y_true, y_pred)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -290,9 +311,19 @@ def log_metrics(y_true, y_pred, step, labels=("x", "P", "S")):
         # specials may or may not be included in the metric arrays, but we
         #   don't want to log them. So instead we do as follows:
         class_i = len(precision_per_class) - len(labels) + label_i
-        log_scalar(f"precision_{label}", precision_per_class[class_i], step)
-        log_scalar(f"recall_{label}", recall_per_class[class_i], step)
-        log_scalar(f"f1_{label}", f1_per_class[class_i], step)
+        log_scalar(
+            f"{f'{kind}_' if kind else ''}precision_{label}",
+            precision_per_class[class_i],
+            step,
+        )
+        log_scalar(
+            f"{f'{kind}_' if kind else ''}recall_{label}",
+            recall_per_class[class_i],
+            step,
+        )
+        log_scalar(
+            f"{f'{kind}_' if kind else ''}f1_{label}", f1_per_class[class_i], step
+        )
 
 
 def train(
@@ -402,7 +433,7 @@ def train(
             y_pred = np.concatenate(
                 [rearrange(y, "... -> (...)") for y in y_pred_accumulator]
             )
-            log_metrics(y_true, y_pred, training_step)
+            log_metrics(y_true, y_pred, training_step, kind="valid")
 
             metrics["loss"]["valid"].append(epoch_valid_loss)
             steps["valid"].append(training_step)
@@ -634,5 +665,49 @@ def run_as_script():
             save_checkpoint(classifier, run_id)
 
 
+def get_sweep_id():
+    sweep_config = deepcopy(SWEEP_CONFIG)
+    sweep_id = wandb.sweep(sweep_config, project=project)
+    return sweep_id
+
+
+def run_training():
+    temp_config = read_config_oc(Config)
+    wandb.init(project=WANDB_PROJECT, config=temp_config)
+
+    config_dict = wandb.config
+    config = from_dict(data_class=Config, data=config_dict)
+
+    (
+        encoder,
+        classifier,
+        optim,
+        datasets,
+        labels,
+        train_config,
+        n_specials,
+        loss_weights,
+    ) = init(config)
+
+    train(
+        encoder,
+        classifier,
+        optim,
+        datasets,
+        labels,
+        train_config,
+        n_specials,
+        loss_weights,
+    )
+
+
+def conduct_sweep():
+    sweep_id = get_sweep_id()
+    wandb.agent(sweep_id, function=run_training)
+
+
 if __name__ == "__main__":
-    run_as_script()
+    if "--conduct-sweep" in sys.argv:
+        conduct_sweep()
+    else:
+        run_as_script()
