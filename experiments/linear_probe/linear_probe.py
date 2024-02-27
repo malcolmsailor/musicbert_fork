@@ -19,6 +19,11 @@ Wandb sweep:
 Then:
     wandb agent msailor/sweep-test/v1uhkjcp
 
+Or:
+[ms3682@r602u03n01.grace musicbert_fork]$ module load miniconda
+[ms3682@r602u03n01.grace musicbert_fork]$ conda activate newbert
+(newbert)[ms3682@r602u03n01.grace musicbert_fork]$ wandb sweep --project sweep-test experiments/linear_probe/linear_probe_config.yaml 
+(newbert)[ms3682@r602u03n01.grace musicbert_fork]$ bash launch_sbatch.sh experiments/linear_probe/linear_probe_slurm_job.sh msailor/sweep-test/hxal8uw5 100
 """
 
 import argparse
@@ -529,7 +534,11 @@ def run_as_script():
 
     temp_config = read_config_oc(Config)
     wandb.login()
-    with wandb.init(project=WANDB_PROJECT, config=asdict(temp_config), dir="/home/ms3682/tmp"):  # type:ignore
+    with wandb.init(project=WANDB_PROJECT, config=asdict(temp_config)):  # type:ignore
+
+        # See https://github.com/wandb/wandb/issues/5591#issuecomment-1557745698
+        wandb.define_metric('valid_loss', summary='min,max,mean,last')
+
         config_dict = wandb.config
         config = from_dict(data_class=Config, data=config_dict)
 
