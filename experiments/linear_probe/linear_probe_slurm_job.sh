@@ -22,7 +22,9 @@ module load miniconda
 conda activate newbert
 
 set -x
-cd $(dirname "$0")
+# Getting dirname in this way doesn't work within slurm
+# cd $(dirname "$0")
+cd ~/code/musicbert_fork/experiments/linear_probe
 
 ## For unknown reasons, getting the sweep id programmatically like this is not working.
 ## Therefore, we'll need to launch the sweep separately with
