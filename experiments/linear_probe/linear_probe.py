@@ -2,7 +2,7 @@
 (Not sure the below commands still work after implementing wandb sweeps)
 
 Local command:
-python experiments/linear_probe/linear_probe.py \
+WANDB_MODE=disabled python experiments/linear_probe/linear_probe.py \
     data_dir=~/output/test_data/labeled_chorales_bin \
     checkpoint=~/output/musicbert_checkpoints/32702693/checkpoint_best.pt \
     ref_dir=~/output/test_data/chord_tones_bin \
@@ -39,6 +39,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
 import numpy as np
+import sklearn.metrics
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -253,6 +254,47 @@ def avg_list(l):
     return sum(l) / len(l)
 
 
+def log_scalar(key, val, step=None):
+    wandb.log({key: val}, training_step=step)
+
+
+def log_metrics(y_true, y_pred, step, labels=("x", "P", "S")):
+    no_specials_mask = y_true >= 0  # type:ignore
+    y_true = y_true[no_specials_mask]
+    y_pred = y_pred[no_specials_mask]
+    for average in ["micro", "weighted", "macro"]:
+        (
+            precision,
+            recall,
+            f1,
+            support,
+        ) = sklearn.metrics.precision_recall_fscore_support(
+            y_true, y_pred, average=average, zero_division=0.0  # type:ignore
+        )
+        log_scalar(f"precision_{average}", precision, step)
+        log_scalar(f"recall_{average}", recall, step)
+        log_scalar(f"f1_{average}", f1, step)
+
+    confused = sklearn.metrics.confusion_matrix(y_true, y_pred)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        precision_per_class = np.nan_to_num(confused.diagonal() / confused.sum(axis=0))
+        recall_per_class = np.nan_to_num(confused.diagonal() / confused.sum(axis=1))
+        f1_per_class = np.nan_to_num(
+            (2 * precision_per_class * recall_per_class)
+            / (precision_per_class + recall_per_class)
+        )
+    for (
+        label_i,
+        label,
+    ) in enumerate(labels):
+        # specials may or may not be included in the metric arrays, but we
+        #   don't want to log them. So instead we do as follows:
+        class_i = len(precision_per_class) - len(labels) + label_i
+        log_scalar(f"precision_{label}", precision_per_class[class_i], step)
+        log_scalar(f"recall_{label}", recall_per_class[class_i], step)
+        log_scalar(f"f1_{label}", f1_per_class[class_i], step)
+
+
 def train(
     encoder,
     classifier: Classifier,
@@ -328,6 +370,8 @@ def train(
             pbar = tqdm(range(0, len(valid_ds), train_config.batch_size))
             pbar.set_description(f"Epoch {epoch_i + 1}/{train_config.n_epochs} valid")
             valid_loss = []
+            y_true_accumulator = []
+            y_pred_accumulator = []
             with torch.no_grad():
                 for i in pbar:
                     indices = range(i, min(len(valid_ds), i + train_config.batch_size))
@@ -348,8 +392,18 @@ def train(
                     )
                     valid_loss.append(loss.item())
                     pbar.set_postfix({"valid_loss": avg_list(valid_loss)})
+                    y_true_accumulator.append(y.numpy())
+                    y_pred_accumulator.append(y_hat.argmax(dim=-1).numpy())
             epoch_valid_loss = avg_list(valid_loss)
             wandb.log({"valid_loss": epoch_valid_loss}, step=training_step)
+            y_true = np.concatenate(
+                [rearrange(y, "... -> (...)") for y in y_true_accumulator]
+            )
+            y_pred = np.concatenate(
+                [rearrange(y, "... -> (...)") for y in y_pred_accumulator]
+            )
+            log_metrics(y_true, y_pred, training_step)
+
             metrics["loss"]["valid"].append(epoch_valid_loss)
             steps["valid"].append(training_step)
             early_stopper.update(epoch_valid_loss)
@@ -537,7 +591,7 @@ def run_as_script():
     with wandb.init(project=WANDB_PROJECT, config=asdict(temp_config)):  # type:ignore
 
         # See https://github.com/wandb/wandb/issues/5591#issuecomment-1557745698
-        wandb.define_metric('valid_loss', summary='min,max,mean,last')
+        wandb.define_metric("valid_loss", summary="min,max,mean,last")
 
         config_dict = wandb.config
         config = from_dict(data_class=Config, data=config_dict)
