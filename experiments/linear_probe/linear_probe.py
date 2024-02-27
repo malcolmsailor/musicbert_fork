@@ -665,7 +665,7 @@ def run_as_script():
             save_checkpoint(classifier, run_id)
 
 
-def get_sweep_id():
+def get_sweep_id(project="bayes-sweep-test"):
     sweep_config = deepcopy(SWEEP_CONFIG)
     sweep_id = wandb.sweep(sweep_config, project=project)
     return sweep_id
