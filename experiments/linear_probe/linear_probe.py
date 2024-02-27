@@ -255,7 +255,7 @@ def avg_list(l):
 
 
 def log_scalar(key, val, step=None):
-    wandb.log({key: val}, training_step=step)
+    wandb.log({key: val}, step=step)
 
 
 def log_metrics(y_true, y_pred, step, labels=("x", "P", "S")):
