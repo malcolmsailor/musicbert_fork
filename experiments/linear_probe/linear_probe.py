@@ -423,21 +423,17 @@ def train(
                     )
                     valid_loss.append(loss.item())
                     pbar.set_postfix({"valid_loss": avg_list(valid_loss)})
-                    y_true_accumulator.append(y.numpy())
-                    y_pred_accumulator.append(y_hat.argmax(dim=-1).numpy())
+                    y_true_accumulator.append(y.detach.cpu().numpy())
+                    y_pred_accumulator.append(
+                        y_hat.argmax(dim=-1).detach().cpu().numpy()
+                    )
             epoch_valid_loss = avg_list(valid_loss)
             wandb.log({"valid_loss": epoch_valid_loss}, step=training_step)
             y_true = np.concatenate(
-                [
-                    rearrange(y.detach().cpu(), "... -> (...)")
-                    for y in y_true_accumulator
-                ]
+                [rearrange(y, "... -> (...)") for y in y_true_accumulator]
             )
             y_pred = np.concatenate(
-                [
-                    rearrange(y.detach().cpu(), "... -> (...)")
-                    for y in y_pred_accumulator
-                ]
+                [rearrange(y, "... -> (...)") for y in y_pred_accumulator]
             )
             log_metrics(y_true, y_pred, training_step, kind="valid")
 
