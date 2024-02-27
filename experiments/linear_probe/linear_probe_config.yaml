@@ -1,7 +1,7 @@
 # config.yaml
 program: linear_probe.py
-method: random
-name: sweep
+method: bayes
+name: bayesian-sweep
 metric:
   goal: minimize
   name: valid_loss
@@ -23,4 +23,5 @@ parameters:
     value: ~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt
   ref_dir:
     value: ~/project/datasets/chord_tones/fairseq/many_target_bin
+
 
