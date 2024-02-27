@@ -5,3 +5,5 @@ wandb
 venvvars
 training_commands.txt
 predict_commands*.txt
+experiments/linear_probe/logs
+experiments/linear_probe/snapshots
