@@ -17,3 +17,10 @@ parameters:
     max: 4
   hidden_dim:
     values: [8, 16, 24, 32, 64]
+  data_dir:
+    value: ~/project/datasets/labeled_bach_chorales_bin
+  checkpoint: 
+    value: ~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt
+  ref_dir:
+    value: ~/project/datasets/chord_tones/fairseq/many_target_bin
+

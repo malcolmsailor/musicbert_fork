@@ -127,6 +127,14 @@ class Config:
     input_dim: int = 768
     hidden_dim: int = 16
 
+    def __post_init__(self):
+        assert self.data_dir is not None
+        self.data_dir = os.path.expanduser(self.data_dir)
+        assert self.checkpoint is not None
+        self.checkpoint = os.path.expanduser(self.checkpoint)
+        assert self.ref_dir is not None
+        self.ref_dir = os.path.expanduser(self.ref_dir)
+
 
 class EarlyStopper:
     def __init__(self, wait, tolerance):
