@@ -1,4 +1,6 @@
 """
+(Not sure the below commands still work after implementing wandb sweeps)
+
 Local command:
 python experiments/linear_probe/linear_probe.py \
     data_dir=~/output/test_data/labeled_chorales_bin \
@@ -11,6 +13,12 @@ python experiments/linear_probe/linear_probe.py \
     checkpoint=~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt \
     ref_dir=~/project/datasets/chord_tones/fairseq/many_target_bin \
     debug=True
+
+Wandb sweep:
+    wandb sweep --project sweep-test linear_probe_config.yaml
+Then:
+    wandb agent msailor/sweep-test/v1uhkjcp
+
 """
 
 import argparse
@@ -521,7 +529,7 @@ def run_as_script():
 
     temp_config = read_config_oc(Config)
     wandb.login()
-    with wandb.init(project=WANDB_PROJECT, config=asdict(temp_config)):  # type:ignore
+    with wandb.init(project=WANDB_PROJECT, config=asdict(temp_config), dir="/home/ms3682/tmp"):  # type:ignore
         config_dict = wandb.config
         config = from_dict(data_class=Config, data=config_dict)
 
