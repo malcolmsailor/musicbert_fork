@@ -77,6 +77,11 @@ SWEEP_CONFIG = {
         "layer_to_probe": {"min": 7, "max": 12},
         "n_layers": {"min": 2, "max": 8},
         "hidden_dim": {"values": [8, 16, 32, 64, 128]},
+        "loss_weights": {
+            "N": {"min": 1.0, "max": 8.0, "distribution": "log_uniform"},
+            "Z": {"min": 1.0, "max": 16.0, "distribution": "log_uniform"},
+        },
+        "lr": {"min": 1e-4, "max": 1e-1, "distribution": "log_uniform"},
     },
 }
 
@@ -160,6 +165,8 @@ class Config:
     n_layers: int = 2
     input_dim: int = 768
     hidden_dim: int = 16
+
+    lr: float = 1e-3
 
     def __post_init__(self):
         if self.data_dir is not None:
@@ -515,7 +522,7 @@ def init(config: Config):
     # musicbert.task.load_dataset("test")
     classifier = Classifier(n_tokens, config)
     classifier.to(DEVICE)
-    optim = torch.optim.Adam(classifier.parameters())
+    optim = torch.optim.Adam(classifier.parameters(), lr=config.lr)
 
     datasets = musicbert.task.datasets
     return (
