@@ -75,13 +75,13 @@ SWEEP_CONFIG = {
     "metric": {"goal": "maximize", "name": "valid_f1_macro"},
     "name": f"bayes-sweep-{int(time.time())}",
     "parameters": {
-        "layer_to_probe": {"min": 7, "max": 12},
+        "layer_to_probe": {"min": 10, "max": 12},
         "n_layers": {"min": 2, "max": 8},
         "hidden_dim": {"values": [8, 16, 32, 64, 128]},
-        "N_loss_weight": {"min": 1.0, "max": 8.0, "distribution": "log_uniform_values"},
+        "N_loss_weight": {"min": 1.0, "max": 4.0, "distribution": "log_uniform_values"},
         "Z_loss_weight": {
             "min": 1.0,
-            "max": 16.0,
+            "max": 8.0,
             "distribution": "log_uniform_values",
         },
         "lr": {"min": 1e-4, "max": 1e-1, "distribution": "log_uniform_values"},

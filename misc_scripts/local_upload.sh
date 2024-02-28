@@ -24,5 +24,5 @@ set -e
 set -x
 zip -r "${data_folder%/}".zip "${data_folder_basename}"
 scp -r "${data_folder%/}".zip ms3682@transfer-grace.ycrc.yale.edu:project/raw_data/
-ssh ms3682@grace.ycrc.yale.edu "cd project/raw_data; unzip ${data_folder_basename%/}.zip; rm ${data_folder_basename%/}.zip"
+ssh ms3682@grace.ycrc.yale.edu "cd project/raw_data; if [ -d ${data_folder_basename} ] ; then mv ${data_folder_basename} ${data_folder_basename}_backup ; fi ; unzip ${data_folder_basename%/}.zip; rm ${data_folder_basename%/}.zip"
 set +x
