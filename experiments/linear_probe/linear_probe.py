@@ -16,7 +16,7 @@ python experiments/linear_probe/linear_probe.py \
 
     
 Below is defunct. New way to do a sweep is to add the --conduct-sweep argument.
-python experiments/linear_probe/linear_probe.py \
+[sbatch slurm_jobs/wrapper.sh] python experiments/linear_probe/linear_probe.py \
     data_dir=~/project/datasets/labeled_bach_chorales_bin \
     checkpoint=~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt \
     ref_dir=~/project/datasets/chord_tones/fairseq/many_target_bin \
@@ -85,6 +85,9 @@ SWEEP_CONFIG = {
             "distribution": "log_uniform_values",
         },
         "lr": {"min": 1e-4, "max": 1e-1, "distribution": "log_uniform_values"},
+        "dropout": {"min": 0.0, "max": 0.5},
+        "lr_scheduler": {"values": ["constant", "linear_decay", "cosine_annealing"]},
+        "lr_warmup": {"values": [True, False]},
     },
 }
 
@@ -172,7 +175,12 @@ class Config:
     input_dim: int = 768
     hidden_dim: int = 16
 
+    dropout: float = 0.0
+
     lr: float = 1e-3
+    lr_scheduler: str = "constant"
+    lr_warmup: bool = False
+    lr_warmup_steps: int = 100
 
     def __post_init__(self):
         if self.data_dir is not None:
@@ -209,8 +217,11 @@ class EarlyStopper:
         return False
 
 
-def classifier_layer(in_dim, out_dim):
-    return nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU())
+def classifier_layer(in_dim, out_dim, dropout):
+    modules = [nn.Linear(in_dim, out_dim), nn.ReLU()]
+    if dropout:
+        modules.append(nn.Dropout(dropout))
+    return nn.Sequential(*modules)
 
 
 class Classifier(nn.Module):
@@ -218,9 +229,9 @@ class Classifier(nn.Module):
         super().__init__()
         assert config.n_layers >= 2
         self.layers = nn.Sequential(
-            classifier_layer(config.input_dim, config.hidden_dim),
+            classifier_layer(config.input_dim, config.hidden_dim, config.dropout),
             *(
-                classifier_layer(config.hidden_dim, config.hidden_dim)
+                classifier_layer(config.hidden_dim, config.hidden_dim, config.dropout)
                 for _ in range(config.n_layers - 2)
             ),
             nn.Linear(config.hidden_dim, output_dim),
@@ -347,6 +358,7 @@ def train(
     encoder,
     classifier: Classifier,
     optim: torch.optim.Optimizer,
+    lr_scheduler: torch.optim.lr_scheduler.LRScheduler,
     datasets,
     label_datasets,
     train_config: Config,
@@ -407,7 +419,9 @@ def train(
                 )
                 loss.backward()
                 metrics["loss"]["train"].append(loss.item())
+                log_scalar("lr", lr_scheduler.get_last_lr()[0], step=training_step)
                 optim.step()
+                lr_scheduler.step()
                 pbar.set_postfix({"loss": avg_list(metrics["loss"]["train"])})
                 training_step += 1
                 steps["train"].append(training_step)
@@ -468,6 +482,33 @@ def train(
     else:
         save = True
     return result, save, metrics, steps
+
+
+def get_lr_scheduler(optim, train_ds, config: Config):
+    total_steps = math.ceil(len(train_ds) / config.batch_size) * config.n_epochs
+    if config.lr_warmup:
+        total_steps -= config.lr_warmup_steps
+    if config.lr_scheduler == "constant":
+        lr_scheduler = torch.optim.lr_scheduler.ConstantLR(optim, factor=1.0)
+    elif config.lr_scheduler == "cosine_annealing":
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optim, T_max=total_steps
+        )
+    elif config.lr_scheduler == "linear_decay":
+        lr_scheduler = torch.optim.lr_scheduler.LinearLR(
+            optim, start_factor=1.0, end_factor=0.1, total_iters=total_steps
+        )
+    else:
+        raise ValueError
+
+    if config.lr_warmup:
+        warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+            optim, start_factor=1e-3, end_factor=1.0
+        )
+        lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optim, [warmup_scheduler, lr_scheduler], milestones=[config.lr_warmup_steps]
+        )
+    return lr_scheduler
 
 
 def init(config: Config):
@@ -532,13 +573,16 @@ def init(config: Config):
     # musicbert.task.load_dataset("test")
     classifier = Classifier(n_tokens, config)
     classifier.to(DEVICE)
-    optim = torch.optim.Adam(classifier.parameters(), lr=config.lr)
-
     datasets = musicbert.task.datasets
+
+    optim = torch.optim.Adam(classifier.parameters(), lr=config.lr)
+    lr_scheduler = get_lr_scheduler(optim, datasets["train"], config)
+
     return (
         encoder,
         classifier,
         optim,
+        lr_scheduler,
         datasets,
         labels,
         config,
@@ -650,6 +694,7 @@ def run_as_script():
             encoder,
             classifier,
             optim,
+            lr_scheduler,
             datasets,
             labels,
             train_config,
@@ -666,6 +711,7 @@ def run_as_script():
             encoder,
             classifier,
             optim,
+            lr_scheduler,
             datasets,
             labels,
             train_config,
@@ -701,6 +747,7 @@ def run_training():
         encoder,
         classifier,
         optim,
+        lr_scheduler,
         datasets,
         labels,
         train_config,
@@ -712,6 +759,7 @@ def run_training():
         encoder,
         classifier,
         optim,
+        lr_scheduler,
         datasets,
         labels,
         train_config,
