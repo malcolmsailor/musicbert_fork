@@ -20,6 +20,11 @@ if [[ -z "${WORKERS}" ]]; then
     WORKERS=24
 fi
 
+if [[ $WORKERS -le 0 ]]; then
+    echo "Number of workers must be greater than 0"
+    exit 1
+fi
+
 echo Number of workers: ${WORKERS}
 
 command="fairseq-preprocess --only-source"
@@ -114,17 +119,17 @@ fi
 conditioning=""
 # Check if the training file exists
 if [ -f "${DATA_RAW}/conditioning_train.txt" ]; then
-    conditioning+=" --trainpref ${DATA_RAW}/midi_train.txt"
+    conditioning+=" --trainpref ${DATA_RAW}/conditioning_train.txt"
 fi
 
 # Check if the validation file exists
 if [ -f "${DATA_RAW}/conditioning_valid.txt" ]; then
-    conditioning+=" --validpref ${DATA_RAW}/midi_valid.txt"
+    conditioning+=" --validpref ${DATA_RAW}/conditioning_valid.txt"
 fi
 
 # Check if the test file exists
 if [ -f "${DATA_RAW}/conditioning_test.txt" ]; then
-    conditioning+=" --testpref ${DATA_RAW}/midi_test.txt"
+    conditioning+=" --testpref ${DATA_RAW}/conditioning_test.txt"
 fi
 
 # Conditioning
