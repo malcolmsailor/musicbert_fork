@@ -6,14 +6,14 @@
 #SBATCH --cpus-per-task=16
 #SBATCH -o /home/ms3682/slurm_output/%j.out # Note that directory will not be created if it does not exist; also, ~ expansion doesn't seem to work
 
-if [[ -z "$4" ]]; then
+if [[ -z "$5" ]]; then
     echo Error: 4 positional arguments required.
-    echo Usage: bash write_seqs.sh [data_settings] [src_data_dir_or_zip] [output_dir] [n_workers] [-o]
+    echo Usage: bash write_seqs.sh [data_settings] [src_data_dir_or_zip] [output_dir] [conditioning] [n_workers] [-o]
     exit 1
 fi
 
 if [[ -z "${WRITE_SEQS_ENV// /}" ]]; then
-    WRITE_SEQS_ENV=write_chord_tones_seqs
+    WRITE_SEQS_ENV="conda activate write_chord_tones_seqs"
 fi
 
 if [[ -z "${WRITE_SEQS_FOLDER// /}" ]]; then
@@ -21,20 +21,32 @@ if [[ -z "${WRITE_SEQS_FOLDER// /}" ]]; then
 fi
 
 if [[ -z "${MUSICBERT_ENV// /}" ]]; then
-    MUSICBERT_ENV=newbert
+    MUSICBERT_ENV="conda activate newbert"
 fi
 
 if [[ -z "${MUSICBERT_FOLDER// /}" ]]; then
     MUSICBERT_FOLDER="/home/ms3682/code/musicbert_fork"
 fi
 
-module load miniconda
+if [[ -z "${WRITE_SEQS_USE_VENV}" ]]; then
+    module load miniconda
+fi
 
-DATA_SETTINGS=$(readlink -f "${1}")
-INPUT_DIR=$(readlink -f "${2}")
-TEMP_DIR=$(mktemp -d)
-TEMP_DIR=$(readlink -f "${TEMP_DIR}")
-OUTPUT_DIR=$(readlink -f "${3}")
+if [[ "$(uname)" == "Darwin" ]]; then
+    # readlink is not available, but shouldn't be necessary either
+    DATA_SETTINGS="${1}"
+    INPUT_DIR="${2}"
+    TEMP_DIR=$(mktemp -d)
+    OUTPUT_DIR="${3}"
+else
+    # Assume Linux
+    DATA_SETTINGS=$(readlink -f "${1}")
+    INPUT_DIR=$(readlink -f "${2}")
+    TEMP_DIR=$(mktemp -d)
+    TEMP_DIR=$(readlink -f "${TEMP_DIR}")
+    OUTPUT_DIR=$(readlink -f "${3}")
+fi
+
 CONDITIONING="${4}"
 N_WORKERS="${5}"
 [[ "$6" == "-o" ]] && OVERWRITE=true || OVERWRITE=false
@@ -52,8 +64,8 @@ if [[ -d "${OUTPUT_DIR}_bin" ]] && $OVERWRITE; then
     rm -rf "${OUTPUT_DIR}_bin"
 fi
 
-echo conda activate "${WRITE_SEQS_ENV}"
-conda activate "${WRITE_SEQS_ENV}"
+echo eval "${WRITE_SEQS_ENV}"
+eval "${WRITE_SEQS_ENV}"
 
 if [[ "${INPUT_DIR}" =~ .*\.zip$ ]]; then
     INPUT_DIR_TMP="${INPUT_DIR%.zip}"
@@ -77,8 +89,8 @@ python scripts/to_fair_seq.py \
 rm -rf "${TEMP_DIR}"
 set +x
 
-echo conda activate "${MUSICBERT_ENV}"
-conda activate "${MUSICBERT_ENV}"
+echo eval "${MUSICBERT_ENV}"
+eval "${MUSICBERT_ENV}"
 
 set -x
 cd "${MUSICBERT_FOLDER}"
