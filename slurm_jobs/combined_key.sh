@@ -14,7 +14,7 @@ conda activate newbert
 set -x
 
 python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
-    -d /home/ms3682/project/datasets/chord_tones/fairseq/combined_key \
+    -d /home/ms3682/project/datasets/chord_tones/fairseq/combined_key_bin \
     -a base \
     -W combined_key \
     "${@}"
