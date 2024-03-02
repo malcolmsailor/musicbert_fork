@@ -35,6 +35,7 @@ from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 from fairseq.tasks import FairseqTask, register_task
 from torch import nn
 
+import musicbert.monkeypatch_load_checkpoint
 import musicbert.state_dict_patch
 from musicbert.token_classification import RobertaSequenceTaggingHead
 
@@ -155,6 +156,15 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             _save(key, tensor)
         self.remaining_inputs_to_save -= 1
 
+    def get_logits(self, model, sample):
+        multi_logits, _ = model(
+            **sample["net_input"],
+            features_only=True,
+            return_all_hiddens=False,
+            classification_head_name=self.classification_head_name,
+        )
+        return multi_logits
+
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
         Returns a tuple with three elements:
@@ -170,12 +180,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         if self.remaining_inputs_to_save:
             self.save_inputs(sample)
 
-        multi_logits, _ = model(
-            **sample["net_input"],
-            features_only=True,
-            return_all_hiddens=False,
-            classification_head_name=self.classification_head_name,
-        )
+        multi_logits = self.get_logits(model, sample)
 
         adjusted_ntokens = sample["ntokens"] // self.compound_token_ratio
         nsentences = sample["target0"].size(0)
@@ -558,7 +563,7 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         return dictionary
 
     @classmethod
-    def setup_task(cls, args, **kwargs):
+    def _setup_task_helper(cls, args, **kwargs):
         assert isinstance(args.num_classes, list) and all(
             x > 0 for x in args.num_classes
         )
@@ -581,39 +586,47 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
             )
             label_dicts.append(label_dict)
             LOGGER.info(f"[label] dictionary {i}: {len(label_dict)} types")
-        return MultiTargetSequenceTaggingTask(
-            args, data_dict, label_dicts  # type:ignore
+        return data_dict, label_dicts
+
+    @classmethod
+    def setup_task(cls, args, **kwargs):
+        data_dict, label_dicts = cls._setup_task_helper(args, **kwargs)
+
+        return cls(args, data_dict, label_dicts)
+
+    def _load_dataset_helper_get_path(self, type, split):
+        return os.path.join(self.args.data, type, split)  # type:ignore
+
+    def _load_dataset_helper_make_dataset(self, type, dictionary, split, combine):
+        split_path = self._load_dataset_helper_get_path(type, split)
+
+        dataset = data_utils.load_indexed_dataset(
+            split_path,
+            dictionary,
+            self.args.dataset_impl,  # type:ignore
+            combine=combine,
         )
+
+        return dataset
 
     def load_dataset(self, split, combine=False, **kwargs):
         """Load a given dataset split (e.g., train, valid, test)."""
 
-        def get_path(type, split):
-            return os.path.join(self.args.data, type, split)  # type:ignore
-
-        def make_dataset(type, dictionary):
-            split_path = get_path(type, split)
-
-            dataset = data_utils.load_indexed_dataset(
-                split_path,
-                dictionary,
-                self.args.dataset_impl,  # type:ignore
-                combine=combine,
-            )
-
-            return dataset
-
-        src_tokens = make_dataset("input0", self.source_dictionary)
+        src_tokens = self._load_dataset_helper_make_dataset(
+            "input0", self.source_dictionary, split, combine
+        )
         assert src_tokens is not None, "could not find dataset: {}".format(
-            get_path("input0", split)
+            self._load_dataset_helper_get_path("input0", split)
         )
 
         dataset = {}
         label_datasets = []
         for i, label_dictionary in enumerate(self.label_dictionaries):
-            label_dataset = make_dataset(f"label{i}", label_dictionary)
+            label_dataset = self._load_dataset_helper_make_dataset(
+                f"label{i}", label_dictionary, split, combine
+            )
             if label_dataset is None:
-                expected_path = get_path(f"label{i}", split)
+                expected_path = self._load_dataset_helper_get_path(f"label{i}", split)
                 LOGGER.warning(
                     f"could not find dataset: {expected_path}. If predicting "
                     "unlabeled data, this is expected."
@@ -685,11 +698,7 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         self.datasets[split] = dataset
         return self.datasets[split]
 
-    def build_model(self, args):
-        from fairseq import models
-
-        model = models.build_model(args, self)
-
+    def _build_model_freeze_helper(self, args, model):
         if args.freeze_layers > 0:
             LOGGER.info(f"Freezing {args.freeze_layers=} layers")
             # What we *don't* want to freeze:
@@ -711,11 +720,22 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
                 for parameter in model.encoder.sentence_encoder.upsampling.parameters():
                     parameter.requires_grad = True
 
-        # We register the sequence tagging head after any freezing so that it won't
-        #   be frozen
+    def _build_model_num_classes_helper(self):
         num_classes = []
         for n, dict in zip(self.args.num_classes, self.label_dictionaries):
             num_classes.append(n + dict.nspecial)
+        return num_classes
+
+    def build_model(self, args):
+        from fairseq import models
+
+        model = models.build_model(args, self)
+        self._build_model_freeze_helper(args, model)
+        num_classes = self._build_model_num_classes_helper()
+
+        # We register the sequence tagging head after any freezing so that it won't
+        #   be frozen
+
         model.register_multitarget_sequence_tagging_head(
             getattr(
                 args, "classification_head_name", "multitarget_sequence_tagging_head"

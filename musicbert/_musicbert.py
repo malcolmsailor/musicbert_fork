@@ -421,6 +421,8 @@ class MusicBERTEncoder(FreezableRobertaEncoder):
 
 @register_model("musicbert")
 class MusicBERTModel(RobertaModel):
+    encoder_cls = MusicBERTEncoder
+
     @classmethod
     def build_model(cls, args, task):
         base_architecture(args)  # modifies args in place
@@ -428,7 +430,7 @@ class MusicBERTModel(RobertaModel):
             args.max_positions = args.tokens_per_sample
         upsample = getattr(task, "upsample_encoder", True)
 
-        encoder = MusicBERTEncoder(args, task.source_dictionary, upsample=upsample)
+        encoder = cls.encoder_cls(args, task.source_dictionary, upsample=upsample)
         out = cls(args, encoder)  # type:ignore
         return out
 
@@ -462,9 +464,16 @@ class MusicBERTModel(RobertaModel):
         )
 
     def register_multitarget_sequence_tagging_head(
-        self, name, num_classes: Sequence[int], inner_dim=None, **kwargs
+        self,
+        name,
+        num_classes: Sequence[int],
+        inner_dim=None,
+        encoder_embed_dim=None,
+        **kwargs,
     ):
         """Register a classification head."""
+        if encoder_embed_dim is None:
+            encoder_embed_dim = self.args.encoder_embed_dim  # type:ignore
         if name in self.classification_heads:
             prev_num_classes = [
                 x.out_proj.out_features
@@ -491,15 +500,17 @@ class MusicBERTModel(RobertaModel):
                 )
         self.classification_heads[  # type:ignore
             name
-        ] = RobertaSequenceMultiTaggingHead(
-            input_dim=self.args.encoder_embed_dim,  # type:ignore
-            inner_dim=inner_dim or self.args.encoder_embed_dim,  # type:ignore
-            num_classes=num_classes,
-            activation_fn=self.args.pooler_activation_fn,  # type:ignore
-            pooler_dropout=self.args.pooler_dropout,  # type:ignore
-            q_noise=self.args.quant_noise_pq,  # type:ignore
-            qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
-            do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
+        ] = (
+            RobertaSequenceMultiTaggingHead(
+                input_dim=encoder_embed_dim,
+                inner_dim=inner_dim or encoder_embed_dim,
+                num_classes=num_classes,
+                activation_fn=self.args.pooler_activation_fn,  # type:ignore
+                pooler_dropout=self.args.pooler_dropout,  # type:ignore
+                q_noise=self.args.quant_noise_pq,  # type:ignore
+                qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
+                do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
+            )
         )
 
 

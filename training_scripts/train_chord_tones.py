@@ -23,7 +23,9 @@ def shell(cmd):
 if not os.getenv("DEBUG_MUSICBERT", None):
     uncommited_changes = shell("git status --porcelain")
     if uncommited_changes:
-        print("There are uncommitted changes; commit them then rerun (or set DEBUG_MUSICBERT env variable)")
+        print(
+            "There are uncommitted changes; commit them then rerun (or set DEBUG_MUSICBERT env variable)"
+        )
         sys.exit(1)
 
 if shutil.which("nvidia-smi"):
@@ -68,6 +70,7 @@ parser.add_argument("--lr", type=float, default=PEAK_LR)
 parser.add_argument("--lr-scheduler", type=str, default="polynomial_decay")
 parser.add_argument("--checkpoint", "-c", default=DEFAULT_CHECKPOINT)
 parser.add_argument("--multitarget", action="store_true")
+parser.add_argument("--conditioning", type=str, default=None)
 parser.add_argument("--sequence-level", action="store_true")
 parser.add_argument("--dryrun", action="store_true")
 parser.add_argument("--skip-training", action="store_true")
@@ -184,7 +187,15 @@ else:
                 ]
             )
 
-    if args.multitarget:
+    if args.conditioning is not None:
+        # assume multitarget for now
+        TASK = "musicbert_conditioned_multitarget_sequence_tagging"
+        CRITERION = "conditioned_multitarget_sequence_tagging"
+        HEAD_NAME = (
+            "sequence_multitarget_tagging_head"  # TODO: (Malcolm 2024-03-02) update
+        )
+
+    elif args.multitarget:
         TASK = "musicbert_multitarget_sequence_tagging"
         HEAD_NAME = "sequence_multitarget_tagging_head"
         CRITERION = "multitarget_sequence_tagging"
@@ -256,8 +267,16 @@ else:
                 f"--num-workers {CPUS_ON_NODE}",
                 f"--lr-scheduler {args.lr_scheduler}",
                 f"--lr {args.lr}",
-                f"--example-network-inputs-to-save {args.num_sample_inputs}" if not args.sequence_level else "",
-                f"--example-network-inputs-path {EXAMPLE_INPUTS_PATH}" if not args.sequence_level else "",
+                (
+                    f"--example-network-inputs-to-save {args.num_sample_inputs}"
+                    if not args.sequence_level
+                    else ""
+                ),
+                (
+                    f"--example-network-inputs-path {EXAMPLE_INPUTS_PATH}"
+                    if not args.sequence_level
+                    else ""
+                ),
             ]
         ).split()
         + args_to_pass_on_to_train
