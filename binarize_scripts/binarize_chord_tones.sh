@@ -108,3 +108,32 @@ else
         ((target_i++))
     done
 fi
+
+# Conditioning
+
+conditioning=""
+# Check if the training file exists
+if [ -f "${DATA_RAW}/conditioning_train.txt" ]; then
+    conditioning+=" --trainpref ${DATA_RAW}/midi_train.txt"
+fi
+
+# Check if the validation file exists
+if [ -f "${DATA_RAW}/conditioning_valid.txt" ]; then
+    conditioning+=" --validpref ${DATA_RAW}/midi_valid.txt"
+fi
+
+# Check if the test file exists
+if [ -f "${DATA_RAW}/conditioning_test.txt" ]; then
+    conditioning+=" --testpref ${DATA_RAW}/midi_test.txt"
+fi
+
+# Conditioning
+if [[ ! -z "$conditioning" ]]; then
+    command="fairseq-preprocess --only-source"
+    command+=" $conditioning"
+    # Continue building the command
+    command+=" --destdir ${DATA_BIN}/conditioning --workers $WORKERS"
+    set -x
+    eval $command
+    set +x
+fi
