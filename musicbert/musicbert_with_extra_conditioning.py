@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -34,21 +35,62 @@ from musicbert.token_classification_multi_target import (
 
 LOGGER = logging.getLogger(__name__)
 
+ACTIVATIONS = {"gelu": nn.GELU}
 
-class EmbeddingWrapper(nn.Module):
+
+def mlp_layer(input_dim, output_dim, dropout, activation_fn, norm=True):
+    modules: List[nn.Module] = [nn.Linear(input_dim, output_dim)]
+    if dropout:
+        modules.append(nn.Dropout(dropout))
+    if norm:
+        modules.append(nn.LayerNorm(output_dim))
+    if activation_fn is not None:
+        modules.append(ACTIVATIONS[activation_fn]())
+    return nn.Sequential(*modules)
+
+
+class MLP(nn.Module):
     def __init__(
         self,
-        vocab_size,
+        n_layers: int,
+        vocab_size: int,
+        output_dim: int,
+        hidden_dim: int,
+        dropout: float,
+        activation_fn: str,
+        norm: bool,
     ):
         super().__init__()
+        self.embedding = nn.Embedding(vocab_size, hidden_dim)
+        assert n_layers > 0
+        layers = []
+        for _ in range(n_layers - 1):
+            layers.append(
+                mlp_layer(hidden_dim, hidden_dim, dropout, activation_fn, norm)
+            )
+        layers.append(mlp_layer(hidden_dim, output_dim, dropout, activation_fn, norm))
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.embedding(x)
+        return self.layers(x)
 
 
 class DualEncoder(MusicBERTEncoder):
     def __init__(self, args, dictionary, upsample: bool = True):
-        # TODO: (Malcolm 2024-03-01) get embedding dimension?
         super().__init__(args, dictionary, upsample=upsample)
         if args.z_encoder == "embedding":
             self.z_encoder = nn.Embedding(args.z_vocab_size, args.z_embed_dim)
+        if args.z_encoder == "mlp":
+            self.z_encoder = MLP(
+                n_layers=args.z_mlp_layers,
+                vocab_size=args.z_vocab_size,
+                output_dim=args.z_embed_dim,
+                hidden_dim=args.z_embed_dim,
+                dropout=args.dropout,
+                activation_fn=args.activation_fn,
+                norm=args.z_mlp_norm,
+            )
 
     def forward(
         self,
@@ -123,8 +165,9 @@ def musicbert_dual_encoder_architecture(args):
     musicbert_base_architecture(args)
     # TODO: (Malcolm 2024-03-02) set good default values
     args.z_embed_dim = getattr(args, "z_embed_dim", 128)
-    # TODO: (Malcolm 2024-03-02) infer vocab size
     args.z_vocab_size = getattr(args, "z_vocab_size", 128)
+    args.z_mlp_layers = getattr(args, "z_mlp_layers", 2)
+    args.z_mlp_norm = getattr(args, "z_mlp_norm", True)
 
 
 @register_task("musicbert_conditioned_multitarget_sequence_tagging")
@@ -190,34 +233,36 @@ class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
         LOGGER.info(f"[conditioning] dictionary: {len(cond_dict)} types")
         return cls(args, data_dict, label_dicts, cond_dict)
 
-    def _build_model_helper_load_checkpoint(self, model, args):
-        if not args.restore_file:
-            return
-        # Load the original pretrained model
-        from fairseq.checkpoint_utils import load_model_ensemble
+    # TODO: (Malcolm 2024-03-04) remove in favor of monkeypatch
+    # def _build_model_helper_load_checkpoint(self, model, args):
+    #     if not args.restore_file:
+    #         return
+    #     # Load the original pretrained model
+    #     from fairseq.checkpoint_utils import load_model_ensemble
 
-        models, _ = load_model_ensemble(
-            [args.restore_file],
-            task=MultiTargetSequenceTaggingTask(
-                args, self.dictionary, self._label_dictionaries  # type:ignore
-            ),
-        )
-        pretrained_model = models[0]
+    #     models, _ = load_model_ensemble(
+    #         [args.restore_file],
+    #         task=MultiTargetSequenceTaggingTask(
+    #             args, self.dictionary, self._label_dictionaries  # type:ignore
+    #         ),
+    #     )
+    #     pretrained_model = models[0]
 
-        # Transfer weights from the pretrained model
-        model_dict = model.state_dict()
-        for name, param in pretrained_model.named_parameters():
-            if name in model_dict:
-                model_dict[name].copy_(param.data)
-            else:
-                print(f"Skipping {name} as it's not in the custom model")
+    #     # Transfer weights from the pretrained model
+    #     model_dict = model.state_dict()
+    #     for name, param in pretrained_model.named_parameters():
+    #         if name in model_dict:
+    #             model_dict[name].copy_(param.data)
+    #         else:
+    #             print(f"Skipping {name} as it's not in the custom model")
 
-        # Now remove args.restor_file so we don't try to load the checkpoint later
-        args.restore_file = None
+    #     # Now remove args.restor_file so we don't try to load the checkpoint later
+    #     args.restore_file = None
 
     def build_model(self, args):
         from fairseq import models
 
+        args.z_vocab_size = len(self.cond_dictionary)
         model = models.build_model(args, self)
         self._build_model_freeze_helper(args, model)  # type:ignore
         num_classes = self._build_model_num_classes_helper()  # type:ignore
