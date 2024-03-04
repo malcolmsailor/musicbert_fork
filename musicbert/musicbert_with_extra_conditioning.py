@@ -89,15 +89,26 @@ class DualEncoder(MusicBERTEncoder):
                 hidden_dim=args.z_embed_dim,
                 dropout=args.dropout,
                 activation_fn=args.activation_fn,
-                norm=args.z_mlp_norm,
+                norm=args.z_mlp_norm == "yes",
             )
         else:
             raise ValueError
-        
+
         if args.z_combine_procedure == "concat":
-            TODO
-        if args.z_combine_procedure == "project":
-            TODO
+            self.combine_f = lambda x, z: torch.concat([x, z], dim=-1)
+            self.output_dim = args.encoder_embed_dim + args.z_embed_dim
+        elif args.z_combine_procedure == "project":
+            self.combine_projection = nn.Linear(
+                args.z_embed_dim + args.encoder_embed_dim, args.encoder_embed_dim
+            )
+
+            def combine_f(x, z):
+                return self.combine_projection(torch.concat([x, z], dim=-1))
+
+            self.combine_f = combine_f
+            self.output_dim = args.encoder_embed_dim
+        else:
+            raise ValueError
 
     def forward(
         self,
@@ -120,7 +131,8 @@ class DualEncoder(MusicBERTEncoder):
             **kwargs,
         )
         z = self.z_encoder(z_tokens)
-        xz = torch.concat([x, z], dim=-1)
+        # xz = torch.concat([x, z], dim=-1)
+        xz = self.combine_f(x, z)
         return xz, extra
 
 
@@ -152,9 +164,15 @@ class ConditionedMultiTargetSequenceTaggingCriterion(
     @staticmethod
     def add_args(parser):
         MultiTargetSequenceTaggingCriterion.add_args(parser)
-        # fmt: off
-        parser.add_argument('--z-encoder',default="embedding", type=str)
-        # fmt: on
+
+        parser.add_argument("--z-encoder", default="embedding", type=str)
+        parser.add_argument("--z-embed-dim", default=128, type=int)
+        parser.add_argument("--z-mlp-layers", default=2, type=int)
+        # TODO: (Malcolm 2024-03-04)
+        parser.add_argument("--z-mlp-norm", default="yes", choices=["yes", "no"])
+        parser.add_argument(
+            "--z-combine-procedure", default="concat", choices=["concat", "project"]
+        )
 
     def get_logits(self, model, sample):
         multi_logits, _ = model(
@@ -174,9 +192,10 @@ def musicbert_dual_encoder_architecture(args):
     args.z_embed_dim = getattr(args, "z_embed_dim", 128)
     args.z_vocab_size = getattr(args, "z_vocab_size", 128)
     args.z_mlp_layers = getattr(args, "z_mlp_layers", 2)
-    args.z_mlp_norm = getattr(args, "z_mlp_norm", True)
+    args.z_mlp_norm = getattr(args, "z_mlp_norm", "yes")
     # "concat" or "project"
     args.z_combine_procedure = getattr(args, "z_combine_procedure", "concat")
+
 
 @register_task("musicbert_conditioned_multitarget_sequence_tagging")
 class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
@@ -282,7 +301,8 @@ class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
             ),
             num_classes=num_classes,
             sequence_tagging=True,
-            encoder_embed_dim=args.encoder_embed_dim + args.z_embed_dim,
+            encoder_embed_dim=model.encoder.output_dim,
+            # encoder_embed_dim=args.encoder_embed_dim + args.z_embed_dim,
         )
         # We can't use the default fairseq checkpoint loading implementation because
         #   it uses strict=True which means that the encoder will cause the
