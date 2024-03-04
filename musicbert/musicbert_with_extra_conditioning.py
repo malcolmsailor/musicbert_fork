@@ -91,6 +91,13 @@ class DualEncoder(MusicBERTEncoder):
                 activation_fn=args.activation_fn,
                 norm=args.z_mlp_norm,
             )
+        else:
+            raise ValueError
+        
+        if args.z_combine_procedure == "concat":
+            TODO
+        if args.z_combine_procedure == "project":
+            TODO
 
     def forward(
         self,
@@ -168,7 +175,8 @@ def musicbert_dual_encoder_architecture(args):
     args.z_vocab_size = getattr(args, "z_vocab_size", 128)
     args.z_mlp_layers = getattr(args, "z_mlp_layers", 2)
     args.z_mlp_norm = getattr(args, "z_mlp_norm", True)
-
+    # "concat" or "project"
+    args.z_combine_procedure = getattr(args, "z_combine_procedure", "concat")
 
 @register_task("musicbert_conditioned_multitarget_sequence_tagging")
 class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
