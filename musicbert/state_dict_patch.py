@@ -64,7 +64,15 @@ def upgrade_state_dict_named(self, state_dict, name):
             assert load_checkpoint_heads, "--load-checkpoint-heads is required"
             if head_name not in classes_per_target:
                 classes_per_target[head_name] = num_classes
-            assert inner_dim == self.args.encoder_embed_dim
+            
+            
+            try:
+                if self.args.z_combine_procedure == "concat":
+                    assert inner_dim == self.args.encoder_embed_dim + self.args.z_embed_dim
+                else:
+                    assert inner_dim == self.args.encoder_embed_dim
+            except AttributeError:
+                    assert inner_dim == self.args.encoder_embed_dim
         else:
             if load_checkpoint_heads:
                 if head_name not in current_head_names:
