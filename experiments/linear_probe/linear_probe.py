@@ -217,7 +217,7 @@ class EarlyStopper:
         return False
 
 
-def classifier_layer(in_dim, out_dim, dropout):
+def mlp_layer(in_dim, out_dim, dropout):
     modules = [nn.Linear(in_dim, out_dim), nn.ReLU()]
     if dropout:
         modules.append(nn.Dropout(dropout))
@@ -227,15 +227,18 @@ def classifier_layer(in_dim, out_dim, dropout):
 class Classifier(nn.Module):
     def __init__(self, output_dim, config: Config):
         super().__init__()
-        assert config.n_layers >= 2
-        self.layers = nn.Sequential(
-            classifier_layer(config.input_dim, config.hidden_dim, config.dropout),
-            *(
-                classifier_layer(config.hidden_dim, config.hidden_dim, config.dropout)
-                for _ in range(config.n_layers - 2)
-            ),
-            nn.Linear(config.hidden_dim, output_dim),
-        )
+        assert config.n_layers >= 1
+        if config.n_layers > 1:
+            self.layers = nn.Sequential(
+                mlp_layer(config.input_dim, config.hidden_dim, config.dropout),
+                *(
+                    mlp_layer(config.hidden_dim, config.hidden_dim, config.dropout)
+                    for _ in range(config.n_layers - 2)
+                ),
+                nn.Linear(config.hidden_dim, output_dim),
+            )
+        else:
+            self.layers = nn.Linear(config.input_dim, output_dim)
 
     def forward(self, x):
         leading_dims = x.shape[:-1]
