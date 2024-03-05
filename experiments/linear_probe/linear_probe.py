@@ -76,7 +76,7 @@ SWEEP_CONFIG = {
     "name": f"bayes-sweep-{int(time.time())}",
     "parameters": {
         # "layer_to_probe": {"min": 10, "max": 12},
-        "n_layers": {"min": 2, "max": 4},
+        # "n_layers": {"min": 2, "max": 4},
         "hidden_dim": {"values": [8, 16, 32]},
         "N_loss_weight": {"min": 1.5, "max": 4.0, "distribution": "log_uniform_values"},
         "Z_loss_weight": {
@@ -171,7 +171,7 @@ class Config:
     wandb_log_freq: int = 25
 
     # classifier config
-    n_layers: int = 2
+    n_layers: int = 1
     input_dim: int = 768
     hidden_dim: int = 16
 
