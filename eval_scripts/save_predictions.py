@@ -21,6 +21,8 @@ sys.path.append(PARENT_DIR)
 
 USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 
+LOG_INTERVAL = 50
+
 # TODO: (Malcolm 2024-01-05) implement getting target names and dictionaries from
 #   labeled dataset (which we provide path to)
 
@@ -134,7 +136,7 @@ def main():
     label_dictionary.save(os.path.join(output_folder, f"{target_name}_dictionary.txt"))
 
     try:
-        for i in range(0, n_examples, args.batch_size):
+        for batch_i, i in enumerate(range(0, n_examples, args.batch_size)):
             samples = [
                 dataset[j] for j in range(i, min(n_examples, i + args.batch_size))
             ]
@@ -161,6 +163,8 @@ def main():
                 pred_tokens = label_dictionary.string(line[:n_tokens])
                 outf.write(pred_tokens)
                 outf.write("\n")
+            if batch_i and (batch_i % LOG_INTERVAL == 0):
+                LOGGER.info(f"Batch {batch_i}")
 
     finally:
         outf.close()

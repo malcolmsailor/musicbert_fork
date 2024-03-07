@@ -32,6 +32,8 @@ sys.path.append(PARENT_DIR)
 
 USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 
+LOG_INTERVAL = 50
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -142,7 +144,7 @@ def main():
         )
 
     try:
-        for i in range(0, n_examples, args.batch_size):
+        for batch_i, i in enumerate(range(0, n_examples, args.batch_size)):
             samples = [
                 dataset[j] for j in range(i, min(n_examples, i + args.batch_size))
             ]
@@ -179,7 +181,8 @@ def main():
                     )
                     outfs[target_name].write(pred_tokens)
                     outfs[target_name].write("\n")
-
+            if batch_i and (batch_i % LOG_INTERVAL == 0):
+                LOGGER.info(f"Batch {batch_i}")
     finally:
         for outf in outfs.values():
             outf.close()
