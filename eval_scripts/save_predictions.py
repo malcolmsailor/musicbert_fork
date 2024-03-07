@@ -43,7 +43,14 @@ def parse_args():
         "for a file called 'target_names.json'",
         default=None,
     )
-
+    # Parse once just to check for a specific unknown arg
+    _, unknown = parser.parse_known_args()
+    for arg in unknown:
+        if arg.startswith("--ref-dir"):
+            raise ValueError(
+                f"Use --target-names and --label-dictionary-path instead of --ref-dir"
+            )
+    # Parse again so we get argparse's usual behavior on other unknown args
     args = parser.parse_args()
     return args
 

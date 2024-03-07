@@ -2,7 +2,6 @@
 https://github.com/facebookresearch/fairseq/pull/1709/files
 """
 
-
 import logging
 import math
 import os
@@ -474,7 +473,7 @@ class SequenceTaggingTask(FairseqTask):
         if args.label_dictionary_path is None:
             label_dictionary_path = os.path.join(args.data, "label", "dict.txt")
         else:
-            label_dictionary_path =args.label_dictionary_path
+            label_dictionary_path = args.label_dictionary_path
 
         # load label dictionary
         label_dict = cls.load_dictionary(
@@ -608,7 +607,7 @@ class SequenceTaggingTask(FairseqTask):
             return dataset
 
         src_tokens = make_dataset("input0", self.source_dictionary)
-        
+
         assert src_tokens is not None, "could not find dataset: {}".format(
             get_path("input0", split)
         )
@@ -646,24 +645,30 @@ class SequenceTaggingTask(FairseqTask):
             label_dataset = RightPadDataset(
                 label_dataset, pad_idx=self.label_dictionary.pad()
             )
-            assert self.label_dictionary.pad() == self.source_dictionary.pad() == PAD_IDX
+            assert (
+                self.label_dictionary.pad() == self.source_dictionary.pad() == PAD_IDX
+            )
             dataset["target"] = label_dataset
 
-        dataset.update({
-            "id": IdDataset(),
-            "net_input": {
-                "src_tokens": RightPadDataset(
+        dataset.update(
+            {
+                "id": IdDataset(),
+                "net_input": {
+                    "src_tokens": RightPadDataset(
+                        src_tokens,
+                        pad_idx=self.source_dictionary.pad(),
+                    ),
+                    "src_lengths": NumelDataset(src_tokens, reduce=False),
+                },
+                "nsentences": NumSamplesDataset(),
+                "ntokens": NumelDataset(src_tokens, reduce=True),
+                "_assert_lengths_match": AssertSameLengthDataset(
                     src_tokens,
-                    pad_idx=self.source_dictionary.pad(),
+                    label_dataset,
+                    self.args.compound_token_ratio,  # type:ignore
                 ),
-                "src_lengths": NumelDataset(src_tokens, reduce=False),
-            },
-            "nsentences": NumSamplesDataset(),
-            "ntokens": NumelDataset(src_tokens, reduce=True),
-            "_assert_lengths_match": AssertSameLengthDataset(
-                src_tokens, label_dataset, self.args.compound_token_ratio  # type:ignore
-            ),
-        })
+            }
+        )
 
         nested_dataset = NestedDictionaryDataset(
             dataset,
