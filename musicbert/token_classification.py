@@ -6,6 +6,7 @@ import logging
 import math
 import os
 import warnings
+from functools import partial
 from typing import Literal, Sequence
 
 import numpy as np
@@ -32,6 +33,8 @@ from fairseq.models.roberta.model import RobertaModel
 from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 from fairseq.tasks import FairseqTask, register_task
 from torch import nn
+
+from musicbert.loss import p_norm_loss
 
 LOGGER = logging.getLogger(__name__)
 
@@ -142,6 +145,14 @@ class SequenceTaggingCriterion(FairseqCriterion):
         else:
             self.loss_weights = None
             self.set_loss_weight_device = True
+        if self.task.args.p_norm_loss:
+            self.p_norm = partial(
+                p_norm_loss,
+                p=self.task.args.p_norm_p,
+                alpha=self.task.args.p_norm_weight,
+            )
+        else:
+            self.p_norm = None
 
     @staticmethod
     def add_args(parser):
@@ -162,6 +173,9 @@ class SequenceTaggingCriterion(FairseqCriterion):
         #   with multi-target token classification interface)
         parser.add_argument("--example-network-inputs-to-save", type=int, default=0)
         parser.add_argument("--example-network-inputs-path", type=str, default=None)
+        parser.add_argument("--p-norm-loss", action="store_true", default=False)
+        parser.add_argument("--p-norm-weight", type=float, default=1e-3)
+        parser.add_argument("--p-norm-p", type=float, default=2.0)
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -194,22 +208,27 @@ class SequenceTaggingCriterion(FairseqCriterion):
             self.loss_weights = self.loss_weights.to(device)
             self.set_loss_weight_device = True
 
-        logits = logits.view(-1, logits.size(-1))
-        loss = F.nll_loss(
-            F.log_softmax(logits, dim=-1, dtype=torch.float32),
+        flat_logits = logits.view(-1, logits.size(-1))
+        nll_loss = F.nll_loss(
+            F.log_softmax(flat_logits, dim=-1, dtype=torch.float32),
             targets,
             ignore_index=self.pad_idx,
             reduction="sum",
             weight=self.loss_weights,
         )
+        loss = nll_loss
+        if self.p_norm:
+            p_norm = self.p_norm(logits)
+            loss += p_norm
 
         # To get the same behavior as the original implementation we should ignore
         #   all specials, not just pad. Not sure if we want to do this.
 
-        masked_preds = logits[targets != self.pad_idx].argmax(dim=1)
+        masked_preds = flat_logits[targets != self.pad_idx].argmax(dim=1)
         masked_targets = targets[targets != self.pad_idx]
         logging_output = {
             "loss": loss.data,
+            "nll_loss": nll_loss.data,
             "ntokens": adjusted_ntokens,
             "nsentences": nsentences,
             "sample_size": sample_size,
@@ -217,6 +236,8 @@ class SequenceTaggingCriterion(FairseqCriterion):
             "y_true": masked_targets.detach().cpu().numpy(),
             "y_pred": masked_preds.detach().cpu().numpy(),
         }
+        if self.p_norm:
+            logging_output["p_norm_loss"] = p_norm.data
 
         return loss, sample_size, logging_output
 
@@ -224,6 +245,13 @@ class SequenceTaggingCriterion(FairseqCriterion):
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
         loss_sum = utils.item(sum(log.get("loss", 0) for log in logging_outputs))
+        if "nll_loss" in logging_outputs[0]:
+            nll_loss_sum = utils.item(
+                sum(log.get("nll_loss", 0) for log in logging_outputs)
+            )
+        else:
+            nll_loss_sum = loss_sum
+
         ntokens = utils.item(sum(log.get("ntokens", 0) for log in logging_outputs))
         nsentences = utils.item(
             sum(log.get("nsentences", 0) for log in logging_outputs)
@@ -241,10 +269,18 @@ class SequenceTaggingCriterion(FairseqCriterion):
         metrics.log_scalar(
             "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
-        # sample_size should be the number of tokens w/o the
+        # sample_size should be the number of tokens w/o the <eos>
         if sample_size != ntokens:
             metrics.log_scalar(
-                "nll_loss", loss_sum / ntokens / math.log(2), ntokens, round=3
+                "nll_loss", nll_loss_sum / ntokens / math.log(2), ntokens, round=3
+            )
+
+        if "p_norm_loss" in logging_outputs[0]:
+            p_norm_loss_sum = utils.item(
+                sum(log.get("p_norm_loss", 0) for log in logging_outputs)
+            )
+            metrics.log_scalar(
+                "p_norm_loss", p_norm_loss_sum / ntokens / math.log(2), ntokens, round=3
             )
 
         if len(logging_outputs) > 0 and "ncorrect" in logging_outputs[0]:
