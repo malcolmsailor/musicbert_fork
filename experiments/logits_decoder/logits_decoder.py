@@ -307,34 +307,34 @@ def log_metrics(y_true, y_pred, step, labels=("x", "P", "S"), kind=""):
         log_scalar(f"{f'{kind}_' if kind else ''}recall_{average}", recall, step)
         log_scalar(f"{f'{kind}_' if kind else ''}f1_{average}", f1, step)
 
-    confused = sklearn.metrics.confusion_matrix(y_true, y_pred)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        precision_per_class = np.nan_to_num(confused.diagonal() / confused.sum(axis=0))
-        recall_per_class = np.nan_to_num(confused.diagonal() / confused.sum(axis=1))
-        f1_per_class = np.nan_to_num(
-            (2 * precision_per_class * recall_per_class)
-            / (precision_per_class + recall_per_class)
-        )
-    for (
-        label_i,
-        label,
-    ) in enumerate(labels):
-        # specials may or may not be included in the metric arrays, but we
-        #   don't want to log them. So instead we do as follows:
-        class_i = len(precision_per_class) - len(labels) + label_i
-        log_scalar(
-            f"{f'{kind}_' if kind else ''}precision_{label}",
-            precision_per_class[class_i],
-            step,
-        )
-        log_scalar(
-            f"{f'{kind}_' if kind else ''}recall_{label}",
-            recall_per_class[class_i],
-            step,
-        )
-        log_scalar(
-            f"{f'{kind}_' if kind else ''}f1_{label}", f1_per_class[class_i], step
-        )
+    # confused = sklearn.metrics.confusion_matrix(y_true, y_pred)
+    # with np.errstate(divide="ignore", invalid="ignore"):
+    #     precision_per_class = np.nan_to_num(confused.diagonal() / confused.sum(axis=0))
+    #     recall_per_class = np.nan_to_num(confused.diagonal() / confused.sum(axis=1))
+    #     f1_per_class = np.nan_to_num(
+    #         (2 * precision_per_class * recall_per_class)
+    #         / (precision_per_class + recall_per_class)
+    #     )
+    # for (
+    #     label_i,
+    #     label,
+    # ) in enumerate(labels):
+    #     # specials may or may not be included in the metric arrays, but we
+    #     #   don't want to log them. So instead we do as follows:
+    #     class_i = len(precision_per_class) - len(labels) + label_i
+    #     log_scalar(
+    #         f"{f'{kind}_' if kind else ''}precision_{label}",
+    #         precision_per_class[class_i],
+    #         step,
+    #     )
+    #     log_scalar(
+    #         f"{f'{kind}_' if kind else ''}recall_{label}",
+    #         recall_per_class[class_i],
+    #         step,
+    #     )
+    #     log_scalar(
+    #         f"{f'{kind}_' if kind else ''}f1_{label}", f1_per_class[class_i], step
+    #     )
 
 
 def train(train_data, valid_data, model: Transformer1, config: Config):
