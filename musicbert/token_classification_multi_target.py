@@ -306,7 +306,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             y_true = np.concatenate(
                 tuple(log.get("y_true") for log in logging_outputs if "y_true" in log)
             )
-            for average in ["micro", "weighted"]:
+            for average in ["micro", "macro", "weighted"]:
                 (
                     precision,
                     recall,
@@ -355,7 +355,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
                 )
             )
 
-            for average in ["micro", "weighted"]:
+            for average in ["micro", "macro", "weighted"]:
                 (
                     precision,
                     recall,
