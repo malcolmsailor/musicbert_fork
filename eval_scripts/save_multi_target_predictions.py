@@ -19,18 +19,20 @@ from collections import defaultdict
 import h5py
 import numpy as np
 import torch
+import torch.nn.functional as F
 from fairseq.data.dictionary import Dictionary
 from fairseq.models.roberta import RobertaModel
-
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
+from fairseq.models.roberta.hub_interface import RobertaHubInterface
 
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
 PARENT_DIR = os.path.join(SCRIPT_DIR, "..")
 
+USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 sys.path.append(PARENT_DIR)
 
-USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
+
 
 LOG_INTERVAL = 50
 
@@ -58,10 +60,53 @@ def parse_args():
     parser.add_argument("--msdebug", action="store_true")
     parser.add_argument("--overwrite", "-o", action="store_true")
     parser.add_argument("--ignore-specials", type=int, default=4)
+    parser.add_argument("--task", default="musicbert_multitarget_sequence_tagging", type=str)
+    parser.add_argument("--head", default="sequence_multitarget_tagging_head", type=str)
 
     args = parser.parse_args()
     return args
 
+
+def extract_features_with_conditioning(
+    self,
+    tokens: torch.LongTensor,
+    z_tokens: torch.LongTensor,
+    return_all_hiddens: bool = False,
+) -> torch.Tensor:
+    # Due to fairseq's somewhat weird import system overriding RobertaHubInterface
+    #   is somewhat tricky, so instead we monkey-patch
+    if tokens.dim() == 1:
+        tokens = tokens.unsqueeze(0)  # type:ignore
+    if tokens.size(-1) > self.model.max_positions():
+        raise ValueError(
+            "tokens exceeds maximum length: {} > {}".format(
+                tokens.size(-1), self.model.max_positions()
+            )
+        )
+    if z_tokens.dim() == 1:
+        z_tokens.unsqueeze(0)
+
+    features, extra = self.model(
+        tokens.to(device=self.device),  # type:ignore
+        features_only=True,
+        return_all_hiddens=return_all_hiddens,
+        z_tokens=z_tokens.to(device=self.device),  # type:ignore
+    )
+    if return_all_hiddens:
+        # convert from T x B x C -> B x T x C
+        inner_states = extra["inner_states"]
+        return [
+            inner_state.transpose(0, 1) for inner_state in inner_states
+        ]  # type:ignore
+    else:
+        return features  # just the last layer's features
+
+def predict_with_conditioning(self, head: str, tokens: torch.LongTensor, z_tokens: torch.LongTensor, return_logits: bool = False):
+    features = self.extract_features(tokens.to(device=self.device), z_tokens=z_tokens.to(device=self.device))  # type:ignore
+    logits = self.model.classification_heads[head](features)
+    if return_logits:
+        return logits
+    return F.log_softmax(logits, dim=-1)
 
 def main():
     args = parse_args()
@@ -103,15 +148,20 @@ def main():
     with open(os.path.join(ref_dir, "target_names.json"), "r") as inf:
         target_names = json.load(inf)
 
+    if args.task == "musicbert_conditioned_multitarget_sequence_tagging":
+        RobertaHubInterface.extract_features = extract_features_with_conditioning  # type:ignore
+        RobertaHubInterface.predict = predict_with_conditioning # type:ignore
+
     musicbert = RobertaModel.from_pretrained(
         model_name_or_path=PARENT_DIR,
         checkpoint_file=checkpoint,
         data_name_or_path=data_dir,
         user_dir=USER_DIR,
-        task="musicbert_multitarget_sequence_tagging",
+        task=args.task,
         ref_dir=args.ref_dir,
         target_names=target_names,
     )
+
 
     musicbert.task.load_dataset(args.dataset)
     dataset = musicbert.task.datasets[args.dataset]
@@ -151,10 +201,18 @@ def main():
             batch = dataset.collater(samples)
             src_tokens = batch["net_input"]["src_tokens"]
 
+            predict_kwargs = {
+                # TODO rename
+                "head":args.head,
+                "tokens": src_tokens,
+                "return_logits": True
+            }
+
+            if "z_tokens" in batch:
+                predict_kwargs["z_tokens"] = batch["z_tokens"]
+
             all_logits = musicbert.predict(  # type:ignore
-                head="sequence_multitarget_tagging_head",
-                tokens=src_tokens,
-                return_logits=True,
+                **predict_kwargs
             )
 
             for logits, target_name in zip(all_logits, target_names):
