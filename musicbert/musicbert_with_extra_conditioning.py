@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import torch
 import torch.nn as nn
@@ -20,6 +20,7 @@ from fairseq.data import (
     data_utils,
 )
 from fairseq.models import register_model, register_model_architecture
+from fairseq.models.roberta.hub_interface import RobertaHubInterface
 from fairseq.tasks import FairseqTask, register_task
 
 from musicbert._musicbert import (
@@ -142,6 +143,30 @@ class DualEncoderModel(MusicBERTModel):
     # encoder_embed_dim set appropriately
     encoder_cls = DualEncoder
 
+    @classmethod
+    def from_pretrained(
+        cls,
+        model_name_or_path,
+        checkpoint_file="model.pt",
+        data_name_or_path=".",
+        bpe="gpt2",
+        **kwargs,
+    ):
+        from fairseq import hub_utils
+
+        x = hub_utils.from_pretrained(
+            model_name_or_path,
+            checkpoint_file,
+            data_name_or_path,
+            archive_map=cls.hub_models(),
+            bpe=bpe,
+            load_checkpoint_heads=True,
+            **kwargs,
+        )
+
+        LOGGER.info(x["args"])
+        return DualEncoderMusicBERTHubInterface(x["args"], x["task"], x["models"][0])
+
     # def forward(
     #     self,
     #     src_tokens,
@@ -152,6 +177,49 @@ class DualEncoderModel(MusicBERTModel):
     #     **kwargs,
     # ):
     #     breakpoint()
+
+
+class DualEncoderMusicBERTHubInterface(RobertaHubInterface):
+    # We need to override in order to provide conditioning to the predict method
+
+    def extract_features(
+        self,
+        tokens: torch.LongTensor,
+        z_tokens: torch.LongTensor,
+        return_all_hiddens: bool = False,
+    ) -> torch.Tensor:
+        if tokens.dim() == 1:
+            tokens = tokens.unsqueeze(0)  # type:ignore
+        if tokens.size(-1) > self.model.max_positions():
+            raise ValueError(
+                "tokens exceeds maximum length: {} > {}".format(
+                    tokens.size(-1), self.model.max_positions()
+                )
+            )
+        if z_tokens.dim() == 1:
+            z_tokens.unsqueeze(0)
+
+        features, extra = self.model(
+            tokens.to(device=self.device),  # type:ignore
+            features_only=True,
+            return_all_hiddens=return_all_hiddens,
+            z_tokens=z_tokens.to(device=self.device),  # type:ignore
+        )
+        if return_all_hiddens:
+            # convert from T x B x C -> B x T x C
+            inner_states = extra["inner_states"]
+            return [
+                inner_state.transpose(0, 1) for inner_state in inner_states
+            ]  # type:ignore
+        else:
+            return features  # just the last layer's features
+
+    def predict(self, head: str, tokens: torch.LongTensor, return_logits: bool = False):
+        features = self.extract_features(tokens.to(device=self.device))  # type:ignore
+        logits = self.model.classification_heads[head](features)
+        if return_logits:
+            return logits
+        return F.log_softmax(logits, dim=-1)
 
 
 @register_criterion("conditioned_multitarget_sequence_tagging")
