@@ -39,6 +39,7 @@ def parse_args():
     parser.add_argument("--label-dictionary-path")
     parser.add_argument("--msdebug", action="store_true")
     parser.add_argument("--overwrite", "-o", action="store_true")
+    parser.add_argument("--task", default="musicbert_sequence_tagging", type=str)
     parser.add_argument(
         "--target-names",
         help="Path to target names JSON file, otherwise we look in --data-dir "
