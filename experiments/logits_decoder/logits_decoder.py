@@ -17,6 +17,9 @@ from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 import wandb
 import sklearn.metrics
+import time
+from copy import deepcopy
+from dacite import from_dict
 
 if torch.cuda.is_available():
     DEVICE = "cuda"
@@ -31,29 +34,47 @@ def custom_excepthook(exc_type, exc_value, exc_traceback):
         traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
         pdb.post_mortem(exc_traceback)
 
+SWEEP_CONFIG = {
+    "method": "bayes",
+    "metric": {"goal": "maximize", "name": "valid_f1_macro"},
+    "name": f"logits-decoder-sweep-{int(time.time())}",
+    "parameters": {
+        "d_model": {"values": [24, 32, 48, 64, 128, 256]},
+        "n_head": {"values": [2, 4, 8]},
+        "n_layers": {"min": 1, "max": 8},
+        "lr": {"min": 1e-4, "max": 1e-1, "distribution": "log_uniform_values"},
+        "dropout": {"min": 0.0, "max": 0.5},
+        "lr_scheduler": {"values": ["constant", "linear_decay", "cosine_annealing"]},
+        "lr_warmup": {"values": [True, False]},
+    },
+}
+
+WANDB_PROJECT = "key-logits-decoder"
 
 @dataclass
 class Config:
     train_logits_h5: str
     train_label_h5: str
-    # valid_logits_h5: str
-    # test_logits_h5: str
+    valid_logits_h5: str
+    valid_label_h5: str
+    test_logits_h5: str
+    test_label_h5: str
     input_dim: int = 24
     d_model: int = 24
-    n_head: int = 2
-    d_ff: int = 32
+    n_head: int = 4
+    d_ff_mult: int = 4
     dropout: float = 0.1
-    n_layers: int = 2
+    n_layers: int = 4
     output_dim: int = 24
 
-    segment_len: int = 100
-    segment_overlap: int = 25
+    segment_len: int = 1000
+    segment_overlap: int = 250
 
     sinusoidal_pe: bool = True
     pe_dropout: Optional[float] = None
 
     n_epochs: int = 30
-    batch_size: int = 32
+    batch_size: int = 8
 
     lr: float = 1e-3
     lr_scheduler: str = "constant"
@@ -63,7 +84,7 @@ class Config:
     early_stop_wait: int = 10
     early_stop_tolerance: float = 1e-2
 
-    wandb_project: str = "scratch"  # TODO: (Malcolm 2024-03-11)
+    wandb_project: str = "key_logits_decoder"
     wandb_watch_freq: int = 50
     wandb_log_freq: int = 25
 
@@ -168,10 +189,15 @@ class Transformer1(nn.Module):
 
     def __init__(self, config: Config):
         super().__init__()
+        if config.input_dim != config.d_model:
+            self.input_proj = nn.Linear(config.input_dim, config.d_model)
+        else:
+            self.input_proj = nn.Identity()
+
         decoder_layer = nn.TransformerEncoderLayer(
             d_model=config.d_model,
             nhead=config.n_head,
-            dim_feedforward=config.d_ff,
+            dim_feedforward=config.d_model * config.d_ff_mult,
             dropout=config.dropout,
         )
         decoder = nn.TransformerEncoder(decoder_layer, num_layers=config.n_layers)
@@ -195,6 +221,7 @@ class Transformer1(nn.Module):
 
     def forward(self, x: torch.Tensor):
         x = rearrange(x, "batch seq ... -> seq batch ...")
+        x = self.input_proj(x)
         x = self.pe(x)
         src_mask = nn.Transformer.generate_square_subsequent_mask(len(x)).to(x.device)
         x = self.decoder(x, mask=src_mask, is_causal=True)
@@ -375,10 +402,46 @@ def train(train_data, valid_data, model: Transformer1, config: Config):
             print(f"Reached early-stopping threshold")
             break
 
+def test(test_data, model: Transformer1, config: Config):
+    test_dl = DataLoader(test_data, config.batch_size, collate_fn=collate_fn)
+    loss_fn = nn.CrossEntropyLoss()
+    model.eval()
+    losses = []
+    y_true_accumulator = []
+    y_pred_accumulator = []
 
-def main():
+    with torch.no_grad():
+        for batch_i, batch in (
+                pbar := tqdm(enumerate(test_dl), total=len(test_dl), ncols=80)
+            ):
+                x, y = batch
+                logits = model(x)
+                loss = loss_fn(
+                    rearrange(logits, "... n_classes -> (...) n_classes"),
+                    rearrange(y, "... -> (...)"),
+                )
+                losses.append(loss.item())
+                pbar.set_postfix({"test_loss": avg_list(losses)})
+                y_true_accumulator.append(y.detach().cpu().numpy())
+                y_pred_accumulator.append(logits.argmax(dim=-1).detach().cpu().numpy())
+        avg_loss = avg_list(losses)
+        wandb.log({"test_loss": avg_loss})
+        y_true = np.concatenate(
+            [rearrange(y, "... -> (...)") for y in y_true_accumulator]
+        )
+        y_pred = np.concatenate(
+            [rearrange(y, "... -> (...)") for y in y_pred_accumulator]
+        )
+        log_metrics(y_true, y_pred, step=None, kind="test")
+
+
+def run_training():
     conf = OmegaConf.from_cli(sys.argv[1:])
-    config = Config(**conf)  # type:ignore
+    temp_config = Config(**conf)  # type:ignore
+
+    wandb.init(project=WANDB_PROJECT, config=temp_config)
+    config_dict = wandb.config
+    config = from_dict(data_class=Config, data=config_dict)
 
     if config.debug:
         sys.excepthook = custom_excepthook
@@ -387,22 +450,40 @@ def main():
     torch.manual_seed(config.seed)
 
     train_data = LogitsData(config.train_logits_h5, config.train_label_h5, config)
-    # TODO: (Malcolm 2024-03-11)
-    valid_data = LogitsData(config.train_logits_h5, config.train_label_h5, config)
+    valid_data = LogitsData(config.valid_logits_h5, config.valid_label_h5, config)
+    test_data = LogitsData(config.test_logits_h5, config.test_label_h5, config)
     model = Transformer1(config)
     model.to(DEVICE)
 
     # x, y = next(iter(train_dl))
-    wandb.login()
+    
     with wandb.init(
         project=config.wandb_project, config=asdict(config)  # type:ignore
     ):
         train(train_data, valid_data, model, config)
+        test(test_data, model, config)
 
     # data = torch.rand((4, config.ctx_length, config.d_model))
     # y = model(data)
     # breakpoint()
 
+def get_sweep_id(project=WANDB_PROJECT):
+    sweep_config = deepcopy(SWEEP_CONFIG)
+    sweep_id = wandb.sweep(sweep_config, project=project)
+    return sweep_id
+
+def conduct_sweep():
+    sweep_id = get_sweep_id()
+    wandb.agent(sweep_id, function=run_training)
+
+def main():
+    wandb.login()
+
+    if "--conduct-sweep" in sys.argv:
+        sys.argv.remove("--conduct-sweep")
+        conduct_sweep()
+    else:
+        run_training()
 
 if __name__ == "__main__":
     main()
