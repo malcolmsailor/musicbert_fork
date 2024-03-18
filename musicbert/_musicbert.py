@@ -377,17 +377,20 @@ class OctupleEncoder(TransformerSentenceEncoder):
         inner_states = []
         if not last_state_only:
             inner_states.append(x)
-        for layer in self.layers:
+        for layer_i, layer in enumerate(self.layers):
             x, _ = layer(x, self_attn_padding_mask=padding_mask)
-            if not last_state_only:
+            if not last_state_only and layer_i < len(self.layers) - 1:
                 inner_states.append(x)
+
         if self.upsample:
             x = x.transpose(0, 1)
             x = self.upsampling(x).view(x.shape[0], x.shape[1] * ratio, -1)
             x = x.transpose(0, 1)
+
+        inner_states.append(x)
+
         sentence_rep = x[0, :, :]
-        if last_state_only:
-            inner_states = [x]
+
         if self.traceable:
             return torch.stack(inner_states), sentence_rep
         else:

@@ -104,6 +104,7 @@ class FreezableRobertaEncoder(RobertaEncoder):
             )
             if was_training and freeze_encoder:
                 self.train()
+
         if not features_only:
             x = self.output_layer(x, masked_tokens=masked_tokens)
         return x, extra

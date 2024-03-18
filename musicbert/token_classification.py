@@ -136,8 +136,8 @@ class SequenceTaggingCriterion(FairseqCriterion):
         super().__init__(task)
         self.classification_head_name = classification_head_name
         self.pad_idx = task.label_dictionary.pad()
-        self.compound_token_ratio = self.task.args.compound_token_ratio
-        if self.task.args.weight_loss:
+        self.compound_token_ratio = getattr(self.task.args, "compound_token_ratio", 8)
+        if getattr(task.args, "weight_loss", False):
             self.loss_weights = get_loss_weights(
                 task.label_dictionary, self.task.args.weight_loss_coef
             )
@@ -145,7 +145,7 @@ class SequenceTaggingCriterion(FairseqCriterion):
         else:
             self.loss_weights = None
             self.set_loss_weight_device = True
-        if self.task.args.p_norm_loss:
+        if getattr(task.args, "p_norm_loss", False):
             self.p_norm = partial(
                 p_norm_loss,
                 p=self.task.args.p_norm_p,
@@ -295,7 +295,7 @@ class SequenceTaggingCriterion(FairseqCriterion):
             y_true = np.concatenate(
                 tuple(log.get("y_true") for log in logging_outputs if "y_true" in log)
             )
-            for average in ["micro", "weighted"]:
+            for average in ["micro", "macro", "weighted"]:
                 (
                     precision,
                     recall,
@@ -439,7 +439,7 @@ class SequenceTaggingTask(FairseqTask):
         parser.add_argument("--label-dictionary-path", default=None)
 
     def __init__(self, args, data_dictionary, label_dictionary):
-        if args.msdebug:
+        if getattr(args, "msdebug", False):
             import pdb
             import sys
             import traceback
@@ -506,7 +506,7 @@ class SequenceTaggingTask(FairseqTask):
         )
         LOGGER.info("[input] dictionary: {} types".format(len(data_dict)))
 
-        if args.label_dictionary_path is None:
+        if getattr(args, "label_dictionary_path", None) is None:
             label_dictionary_path = os.path.join(args.data, "label", "dict.txt")
         else:
             label_dictionary_path = args.label_dictionary_path
@@ -534,7 +534,7 @@ class SequenceTaggingTask(FairseqTask):
         model_state = model.training
         model.eval()
         dataset = self.datasets[split]
-        samples = [dataset[i] for i in indices]
+        samples = [dataset[i] for i in indices if i < len(dataset)]
         batch = dataset.collater(samples)
 
         # Hack to get the device of the model
@@ -701,7 +701,7 @@ class SequenceTaggingTask(FairseqTask):
                 "_assert_lengths_match": AssertSameLengthDataset(
                     src_tokens,
                     label_dataset,
-                    self.args.compound_token_ratio,  # type:ignore
+                    getattr(self.args, "compound_token_ratio", 8),  # type:ignore
                 ),
             }
         )
@@ -711,7 +711,7 @@ class SequenceTaggingTask(FairseqTask):
             sizes=[src_tokens.sizes],
         )
 
-        if self.args.no_shuffle:  # type:ignore
+        if getattr(self.args, "no_shuffle", False):  # type:ignore
             dataset = nested_dataset
         else:
             with data_utils.numpy_seed(self.args.seed):  # type:ignore
@@ -732,19 +732,20 @@ class SequenceTaggingTask(FairseqTask):
 
         model = models.build_model(args, self)
 
-        if args.freeze_layers > 0:
-            LOGGER.info(f"Freezing {args.freeze_layers=} layers")
+        freeze_layers = getattr(args, "freeze_layers", 0)
+        if freeze_layers > 0:
+            LOGGER.info(f"Freezing {freeze_layers=} layers")
             # What we *don't* want to freeze:
             # 1. the last n - freeze_layers encoder layers
             # 2. the classification head
             n_layers = len(model.encoder.sentence_encoder.layers)
-            assert n_layers >= args.freeze_layers
+            assert n_layers >= freeze_layers
 
             for parameter in model.parameters():
                 parameter.requires_grad = False
 
             for layer_i, layer in enumerate(model.encoder.sentence_encoder.layers):
-                if layer_i < args.freeze_layers:
+                if layer_i < freeze_layers:
                     continue
                 for parameter in layer.parameters():
                     parameter.requires_grad = True
