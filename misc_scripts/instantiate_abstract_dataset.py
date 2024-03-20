@@ -38,8 +38,11 @@ def main():
 
     make_links(config.inputs_name, "input0", config)
 
-    for i, feature in enumerate(config.feature_names):
-        make_links(feature, f"label{i}", config)
+    if len(config.feature_names) == 1:
+        make_links(config.feature_names[0], "label", config)
+    else:
+        for i, feature in enumerate(config.feature_names):
+            make_links(feature, f"label{i}", config)
 
     if config.conditioning:
         make_links(config.conditioning, "conditioning", config)
