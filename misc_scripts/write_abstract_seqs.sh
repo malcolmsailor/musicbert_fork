@@ -11,7 +11,6 @@ INPUTS_PATHS=$2
 if [[ -z "$2" ]]; then
     echo Error: 2 positional arguments required.
     echo Usage: bash write_abstract_seqs.sh [input_dir] [input_splits_paths]
-    [data_settings] [src_data_dir_or_zip] [output_dir] [n_workers] [-o]
     exit 1
 fi
 
