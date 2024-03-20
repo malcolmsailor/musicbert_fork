@@ -24,6 +24,20 @@ def make_links(feature, output_subfolder, config):
     os.symlink(src_dir, dst_dir)
 
 
+def make_metadata_links(config):
+    assert config.input_folder.rstrip(os.path.sep).endswith("_bin")
+    raw_data_dir = config.input_folder.rstrip(os.path.sep)[:-4] + "_raw"
+    assert os.path.exists(raw_data_dir)
+
+    for split in ("train", "valid", "test"):
+        metadata_basename = f"metadata_{split}.txt"
+        src = os.path.join(raw_data_dir, metadata_basename)
+        if os.path.exists(src):
+            dst = os.path.join(config.output_folder, metadata_basename)
+            print(f"Linking {src} -> {dst}")
+            os.symlink(src, dst)
+
+
 def main():
     conf = OmegaConf.from_cli(sys.argv[1:])
     config = Config(**conf)  # type:ignore
@@ -46,6 +60,8 @@ def main():
 
     if config.conditioning:
         make_links(config.conditioning, "conditioning", config)
+
+    make_metadata_links(config)
 
 
 if __name__ == "__main__":
