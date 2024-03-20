@@ -129,6 +129,27 @@ else:
 
 DATA_BIN_DIR = args.data_bin_dir.rstrip(os.path.sep)
 
+if args.conditioning is not None:
+    # assume multitarget for now
+    TASK = "musicbert_conditioned_multitarget_sequence_tagging"
+    CRITERION = "conditioned_multitarget_sequence_tagging"
+    HEAD_NAME = (
+        "sequence_multitarget_tagging_head"  # TODO: (Malcolm 2024-03-02) update
+    )
+
+elif args.multitarget:
+    TASK = "musicbert_multitarget_sequence_tagging"
+    HEAD_NAME = "sequence_multitarget_tagging_head"
+    CRITERION = "multitarget_sequence_tagging"
+elif args.sequence_level:
+    TASK = "sentence_prediction"
+    HEAD_NAME = "sequence_level_head"
+    CRITERION = "freezable_sentence_prediction"
+else:
+    TASK = "musicbert_sequence_tagging"
+    HEAD_NAME = "sequence_tagging_head"
+    CRITERION = "sequence_tagging"
+
 if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-training flag, skipping training")
     LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
@@ -187,26 +208,6 @@ else:
                 ]
             )
 
-    if args.conditioning is not None:
-        # assume multitarget for now
-        TASK = "musicbert_conditioned_multitarget_sequence_tagging"
-        CRITERION = "conditioned_multitarget_sequence_tagging"
-        HEAD_NAME = (
-            "sequence_multitarget_tagging_head"  # TODO: (Malcolm 2024-03-02) update
-        )
-
-    elif args.multitarget:
-        TASK = "musicbert_multitarget_sequence_tagging"
-        HEAD_NAME = "sequence_multitarget_tagging_head"
-        CRITERION = "multitarget_sequence_tagging"
-    elif args.sequence_level:
-        TASK = "sentence_prediction"
-        HEAD_NAME = "sequence_level_head"
-        CRITERION = "freezable_sentence_prediction"
-    else:
-        TASK = "musicbert_sequence_tagging"
-        HEAD_NAME = "sequence_tagging_head"
-        CRITERION = "sequence_tagging"
     # TASK = (
     #     "musicbert_multitarget_sequence_tagging"
     #     if args.multitarget
@@ -411,6 +412,7 @@ else:
                         f"--data-dir {DATA_BIN_DIR}",
                         f"--checkpoint {BEST_CHECKPOINT_PATH}",
                         f"--output-folder {PREDICTIONS_PATH}",
+                        f"--task {TASK}",
                         max_example_str,
                     ]
                 ).split()
