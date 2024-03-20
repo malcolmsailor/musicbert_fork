@@ -16,7 +16,7 @@ conda activate write_chord_tones_seqs
 set -x
 SRC_DATA_DIR=${INPUT_DIR} python -m write_seqs \
     --data-settings ~/code/write_seqs/configs/oct_data_abstract.yaml \
-    --output-dir ~/project/raw_data/abstract_seqs --frac 0.01
+    --output-dir ~/project/raw_data/abstract_seqs --frac 0.03
 
 python ~/code/write_seqs/scripts/to_fair_seq_abstract.py \
     --input-dir ~/project/raw_data/abstract_seqs \
