@@ -87,8 +87,6 @@ def main():
             raise ValueError(f"Output folder {output_folder} already exists")
 
     assert data_dir.rstrip(os.path.sep).endswith("_bin")
-    raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
-    assert os.path.exists(raw_data_dir)
 
     if args.target_names is not None:
         target_name_json_path = args.target_names
@@ -170,10 +168,14 @@ def main():
     finally:
         outf.close()
 
-    shutil.copy(
-        os.path.join(raw_data_dir, f"metadata_{args.dataset}.txt"),
-        os.path.join(output_folder, f"metadata_{args.dataset}.txt"),
-    )
+    metadata_basename = f"metadata_{args.dataset}.txt"
+    metadata_path = os.path.join(data_dir, metadata_basename)
+    if not os.path.exists(metadata_path):
+        raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
+        assert os.path.exists(raw_data_dir)
+        metadata_path = os.path.join(raw_data_dir, metadata_basename)
+
+    shutil.copy(metadata_path, os.path.join(output_folder, metadata_basename))
 
 
 if __name__ == "__main__":

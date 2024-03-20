@@ -60,7 +60,9 @@ def parse_args():
     parser.add_argument("--msdebug", action="store_true")
     parser.add_argument("--overwrite", "-o", action="store_true")
     parser.add_argument("--ignore-specials", type=int, default=4)
-    parser.add_argument("--task", default="musicbert_multitarget_sequence_tagging", type=str)
+    parser.add_argument(
+        "--task", default="musicbert_multitarget_sequence_tagging", type=str
+    )
     parser.add_argument("--head", default="sequence_multitarget_tagging_head", type=str)
 
     args = parser.parse_args()
@@ -101,12 +103,22 @@ def extract_features_with_conditioning(
     else:
         return features  # just the last layer's features
 
-def predict_with_conditioning(self, head: str, tokens: torch.LongTensor, z_tokens: torch.LongTensor, return_logits: bool = False):
-    features = self.extract_features(tokens.to(device=self.device), z_tokens=z_tokens.to(device=self.device))  # type:ignore
+
+def predict_with_conditioning(
+    self,
+    head: str,
+    tokens: torch.LongTensor,
+    z_tokens: torch.LongTensor,
+    return_logits: bool = False,
+):
+    features = self.extract_features(
+        tokens.to(device=self.device), z_tokens=z_tokens.to(device=self.device)
+    )  # type:ignore
     logits = self.model.classification_heads[head](features)
     if return_logits:
         return logits
     return F.log_softmax(logits, dim=-1)
+
 
 def main():
     args = parse_args()
@@ -142,15 +154,15 @@ def main():
             raise ValueError(f"Output folder {output_folder} already exists")
 
     assert data_dir.rstrip(os.path.sep).endswith("_bin")
-    raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
-    assert os.path.exists(raw_data_dir)
 
     with open(os.path.join(ref_dir, "target_names.json"), "r") as inf:
         target_names = json.load(inf)
 
     if args.task == "musicbert_conditioned_multitarget_sequence_tagging":
-        RobertaHubInterface.extract_features = extract_features_with_conditioning  # type:ignore
-        RobertaHubInterface.predict = predict_with_conditioning # type:ignore
+        RobertaHubInterface.extract_features = (
+            extract_features_with_conditioning
+        )  # type:ignore
+        RobertaHubInterface.predict = predict_with_conditioning  # type:ignore
 
     musicbert = RobertaModel.from_pretrained(
         model_name_or_path=PARENT_DIR,
@@ -161,7 +173,6 @@ def main():
         ref_dir=args.ref_dir,
         target_names=target_names,
     )
-
 
     musicbert.task.load_dataset(args.dataset)
     dataset = musicbert.task.datasets[args.dataset]
@@ -203,9 +214,9 @@ def main():
 
             predict_kwargs = {
                 # TODO rename
-                "head":args.head,
+                "head": args.head,
                 "tokens": src_tokens,
-                "return_logits": True
+                "return_logits": True,
             }
 
             if "z_tokens" in batch:
@@ -248,10 +259,15 @@ def main():
         for outf in out_hdfs.values():
             outf.close()
 
-    shutil.copy(
-        os.path.join(raw_data_dir, f"metadata_{args.dataset}.txt"),
-        os.path.join(output_folder, f"metadata_{args.dataset}.txt"),
-    )
+    metadata_basename = f"metadata_{args.dataset}.txt"
+    metadata_path = os.path.join(data_dir, metadata_basename)
+    if not os.path.exists(metadata_path):
+        raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
+        assert os.path.exists(raw_data_dir)
+        metadata_path = os.path.join(raw_data_dir, metadata_basename)
+
+    shutil.copy(metadata_path, os.path.join(output_folder, metadata_basename))
+
     if args.ignore_specials:
         with open(os.path.join(output_folder, "num_ignored_specials.txt"), "w") as outf:
             outf.write(str(args.ignore_specials))
