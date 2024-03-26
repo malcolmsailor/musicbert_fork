@@ -12,6 +12,7 @@ class Config:
     feature_names: List[str]
     output_folder: str
     conditioning: Optional[str] = None
+    external_conditioning: Optional[str] = None
     inputs_name: str = "input0"
 
 
@@ -38,6 +39,14 @@ def make_metadata_links(config):
             os.symlink(src, dst)
 
 
+def make_external_conditioning_links(config: Config):
+    assert config.external_conditioning
+    assert os.path.isdir(config.external_conditioning)
+    dst_dir = os.path.join(config.output_folder, "conditioning")
+    print(f"Linking {dst_dir} -> {config.external_conditioning}")
+    os.symlink(config.external_conditioning, dst_dir)
+
+
 def main():
     conf = OmegaConf.from_cli(sys.argv[1:])
     config = Config(**conf)  # type:ignore
@@ -58,8 +67,12 @@ def main():
         for i, feature in enumerate(config.feature_names):
             make_links(feature, f"label{i}", config)
 
+    assert not (config.conditioning and config.external_conditioning)
+
     if config.conditioning:
         make_links(config.conditioning, "conditioning", config)
+    elif config.external_conditioning:
+        make_external_conditioning_links(config)
 
     make_metadata_links(config)
 
