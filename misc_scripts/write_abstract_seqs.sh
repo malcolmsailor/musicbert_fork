@@ -18,6 +18,11 @@ fi
 
 set -e
 
+fi
+if [[ -d "${RAW_OUTPUT_DIR/_raw/_bin}" ]]; then
+    echo Error: "${RAW_OUTPUT_DIR/_raw/_bin}" exists
+fi
+
 module load miniconda
 conda activate write_chord_tones_seqs
 
@@ -39,3 +44,4 @@ python ~/code/musicbert_fork/binarize_scripts/binarize_abstract_folder.py \
     input_folder=${RAW_OUTPUT_DIR} workers=16
 
 set +x
+
