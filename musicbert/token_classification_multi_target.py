@@ -293,7 +293,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
             for i, sigma in enumerate(
                 model.classification_heads[self.classification_head_name].loss_sigma
             ):
-                logging_output[f"sigma_{i}"] = (sigma.item(),)
+                logging_output[f"sigma_{i}"] = sigma.item()
 
         return loss, sample_size, logging_output
 
