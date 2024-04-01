@@ -513,6 +513,7 @@ class MusicBERTModel(RobertaModel):
                 q_noise=self.args.quant_noise_pq,  # type:ignore
                 qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
                 do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
+                liebel_loss=self.args.liebel_loss,  # type:ignore
             )
         )
 

@@ -82,6 +82,7 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
         q_noise=0,
         qn_block_size=8,
         do_spectral_norm=False,
+        liebel_loss: bool = False,
     ):
         super().__init__()
         sub_heads = []
@@ -100,6 +101,13 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
             )
         self.n_heads = len(sub_heads)
         self.multi_tag_sub_heads = nn.ModuleList(sub_heads)
+        if liebel_loss:
+            # (Malcolm 2024-04-01) We actually use the loss_sigma parameter in the
+            #   forward method of MultiTargetSequenceTaggingCriterion. This design
+            #   seems like it could be improved upon.
+            self.loss_sigma = nn.Parameter(
+                torch.full((len(sub_heads),), 1 / len(sub_heads))
+            )
 
     def forward(self, features, **kwargs):
         x = [sub_head(features) for sub_head in self.multi_tag_sub_heads]
@@ -118,6 +126,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         )
         self.example_network_inputs_path = self.task.args.example_network_inputs_path
         self.target_dropout = self.task.args.target_dropout
+        self.use_liebel_loss = self.task.args.liebel_loss
         if self.remaining_inputs_to_save:
             assert (
                 self.example_network_inputs_path is not None
@@ -133,6 +142,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
         parser.add_argument('--example-network-inputs-path', type=str, default=None)
         parser.add_argument('--target-dropout', type=float, default=0.0)
+        parser.add_argument("--liebel-loss", action="store_true", help="use multi-task loss from Liebel and Korner 2018")
         # fmt: on
 
     def save_inputs(self, sample):
@@ -233,8 +243,32 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
         masked_targets = np.concatenate(masked_targets_list)
 
         if not model.training or not self.target_dropout:
-            loss = torch.stack(losses).mean()
+            loss_stack = torch.stack(losses)
+            if self.use_liebel_loss:
+                loss_sigma = model.classification_heads[
+                    self.classification_head_name
+                ].loss_sigma
+
+                # Note:
+                # We use the loss function given in Qiu, Chen, and Zhang, “A Novel
+                # Multi-Task Learning Method for Symbolic Music Emotion Recognition”:
+                #
+                # \sum{t} \frac{1}{2 * \sigma_t} + \ln * ( 1 + \sigma_{t}^{2})
+                #
+                # In Liebel and Körner, “Auxiliary Tasks in Multi-Task Learning”,
+                # sigma_t in the denominator is squared as well:
+                #
+                # \sum{t} \frac{1}{2 * \sigma_{t}^{2}} + \ln * ( 1 + \sigma_{t}^{2})
+
+                scaled_losses = 1 / (2 * loss_sigma) * loss_stack + torch.log(
+                    1 + loss_sigma**2
+                )
+                loss = scaled_losses.sum()
+            else:
+                loss = loss_stack.mean()
         else:
+            if self.use_liebel_loss:
+                raise NotImplementedError
             loss_tensor = torch.stack(losses)
 
             rand_sample = torch.rand_like(loss_tensor)
@@ -255,6 +289,11 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
                 "y_pred": masked_preds,
             }
         )
+        if self.use_liebel_loss:
+            for i, sigma in enumerate(
+                model.classification_heads[self.classification_head_name].loss_sigma
+            ):
+                logging_output[f"sigma_{i}"] = (sigma.item(),)
 
         return loss, sample_size, logging_output
 
