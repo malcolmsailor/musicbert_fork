@@ -2,6 +2,7 @@
 https://github.com/facebookresearch/fairseq/pull/1709/files
 """
 
+from itertools import count
 import json
 import logging
 import math
@@ -333,6 +334,14 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
                 nsentences,
                 round=1,
             )
+
+        for i in count():
+            # log liebel-loss parameters if they exist
+            if len(logging_outputs) > 0 and f"sigma_{i}" in logging_outputs[0]:
+                metrics.log_scalar(f"sigma_{i}", logging_outputs[-1][f"sigma_{i}"])
+            else:
+                break
+
         warnings.filterwarnings(
             "ignore",
             message="y_pred contains classes not in y_true",
