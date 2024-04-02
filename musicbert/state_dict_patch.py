@@ -48,7 +48,12 @@ def upgrade_state_dict_named(self, state_dict, name):
                     r"sequence_multitarget_tagging_head\._sub_heads\.\d+",
                     k[len(prefix + "classification_heads.") :],
                 )
-            assert m is not None
+            if m is None:
+                # (Malcolm 2024-04-02) if we have a parameter like 
+                # `'classification_heads.sequence_multitarget_tagging_head.loss_sigma'`,
+                # then continue
+                continue
+
             head_name = m.group()
 
         # Original fairseq behavior
