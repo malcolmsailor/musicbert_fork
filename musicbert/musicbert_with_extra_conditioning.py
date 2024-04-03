@@ -28,10 +28,10 @@ from musicbert._musicbert import (
     MusicBERTModel,
     musicbert_base_architecture,
 )
-from musicbert.token_classification_multi_target import (
+from musicbert.token_classification_multi_task import (
     AssertSameLengthDataset,
-    MultiTargetSequenceTaggingCriterion,
-    MultiTargetSequenceTaggingTask,
+    MultiTaskSequenceTaggingCriterion,
+    MultiTaskSequenceTaggingTask,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -139,7 +139,7 @@ class DualEncoder(MusicBERTEncoder):
 
 @register_model("musicbert_dual_encoder")
 class DualEncoderModel(MusicBERTModel):
-    # TODO: (Malcolm 2024-03-01) use register_multitarget_sequence_tagging_head with
+    # TODO: (Malcolm 2024-03-01) use register_multitask_sequence_tagging_head with
     # encoder_embed_dim set appropriately
     encoder_cls = DualEncoder
 
@@ -222,16 +222,14 @@ class DualEncoderMusicBERTHubInterface(RobertaHubInterface):
         return F.log_softmax(logits, dim=-1)
 
 
-@register_criterion("conditioned_multitarget_sequence_tagging")
-class ConditionedMultiTargetSequenceTaggingCriterion(
-    MultiTargetSequenceTaggingCriterion
-):
+@register_criterion("conditioned_multitask_sequence_tagging")
+class ConditionedMultiTaskSequenceTaggingCriterion(MultiTaskSequenceTaggingCriterion):
     def __init__(self, task, classification_head_name):
         super().__init__(task, classification_head_name)
 
     @staticmethod
     def add_args(parser):
-        MultiTargetSequenceTaggingCriterion.add_args(parser)
+        MultiTaskSequenceTaggingCriterion.add_args(parser)
 
         parser.add_argument("--z-encoder", default="embedding", type=str)
         parser.add_argument("--z-embed-dim", default=128, type=int)
@@ -265,12 +263,12 @@ def musicbert_dual_encoder_architecture(args):
     args.z_combine_procedure = getattr(args, "z_combine_procedure", "concat")
 
 
-@register_task("musicbert_conditioned_multitarget_sequence_tagging")
-class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
+@register_task("musicbert_conditioned_multitask_sequence_tagging")
+class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
 
     @staticmethod
     def add_args(parser):
-        MultiTargetSequenceTaggingTask.add_args(parser)
+        MultiTaskSequenceTaggingTask.add_args(parser)
 
     def __init__(self, args, data_dictionary, label_dictionaries, cond_dictionary):
         super().__init__(args, data_dictionary, label_dictionaries)  # type:ignore
@@ -318,7 +316,7 @@ class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
     @classmethod
     def setup_task(cls, args, **kwargs):
         data_dict, label_dicts = (
-            MultiTargetSequenceTaggingTask._setup_task_helper(  # type:ignore
+            MultiTaskSequenceTaggingTask._setup_task_helper(  # type:ignore
                 args, **kwargs
             )
         )
@@ -337,7 +335,7 @@ class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
 
     #     models, _ = load_model_ensemble(
     #         [args.restore_file],
-    #         task=MultiTargetSequenceTaggingTask(
+    #         task=MultiTaskSequenceTaggingTask(
     #             args, self.dictionary, self._label_dictionaries  # type:ignore
     #         ),
     #     )
@@ -363,9 +361,9 @@ class DualEncoderMultiTargetSequenceTagging(MultiTargetSequenceTaggingTask):
         num_classes = self._build_model_num_classes_helper()  # type:ignore
         # TODO: (Malcolm 2024-03-02)
 
-        model.register_multitarget_sequence_tagging_head(
+        model.register_multitask_sequence_tagging_head(
             getattr(
-                args, "classification_head_name", "multitarget_sequence_tagging_head"
+                args, "classification_head_name", "multitask_sequence_tagging_head"
             ),
             num_classes=num_classes,
             sequence_tagging=True,

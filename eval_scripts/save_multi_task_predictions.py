@@ -1,7 +1,7 @@
 """
 Example testing command:
-python eval_scripts/save_multi_target_predictions.py --data-dir ~/project/datasets/chord_tones/fairseq/many_target_bin --checkpoint ~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt --output-folder ~/tmp/mout --msdebug --ignore-specials 4 --overwrite --max-examples 2
-python eval_scripts/save_multi_target_predictions.py \
+python eval_scripts/save_multi_task_predictions.py --data-dir ~/project/datasets/chord_tones/fairseq/many_target_bin --checkpoint ~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt --output-folder ~/tmp/mout --msdebug --ignore-specials 4 --overwrite --max-examples 2
+python eval_scripts/save_multi_task_predictions.py \
     --data-dir ~/output/test_data/chord_tones_bin \
     --checkpoint ~/output/musicbert_checkpoints/32702693/checkpoint_best.pt \
     --output-folder ~/tmp/mout --msdebug --ignore-specials 4 \
@@ -61,9 +61,9 @@ def parse_args():
     parser.add_argument("--overwrite", "-o", action="store_true")
     parser.add_argument("--ignore-specials", type=int, default=4)
     parser.add_argument(
-        "--task", default="musicbert_multitarget_sequence_tagging", type=str
+        "--task", default="musicbert_multitask_sequence_tagging", type=str
     )
-    parser.add_argument("--head", default="sequence_multitarget_tagging_head", type=str)
+    parser.add_argument("--head", default="sequence_multitask_tagging_head", type=str)
 
     args = parser.parse_args()
     return args
@@ -158,7 +158,7 @@ def main():
     with open(os.path.join(ref_dir, "target_names.json"), "r") as inf:
         target_names = json.load(inf)
 
-    if args.task == "musicbert_conditioned_multitarget_sequence_tagging":
+    if args.task == "musicbert_conditioned_multitask_sequence_tagging":
         RobertaHubInterface.extract_features = (
             extract_features_with_conditioning
         )  # type:ignore

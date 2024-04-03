@@ -1,6 +1,7 @@
 """After updating binarize_chord_tones_unlabeled.sh to copy label dicts and target 
 names from reference folder, I don't believe this script is necessary.
 """
+
 # import argparse
 # import json
 # import os
@@ -71,7 +72,7 @@ names from reference folder, I don't believe this script is necessary.
 #         checkpoint_file=checkpoint,
 #         data_name_or_path=data_dir,
 #         user_dir=USER_DIR,
-#         task="musicbert_multitarget_sequence_tagging",
+#         task="musicbert_multitask_sequence_tagging",
 #     )
 
 #     musicbert.task.load_dataset(args.dataset)
@@ -106,7 +107,7 @@ names from reference folder, I don't believe this script is necessary.
 
 #             # logits: batch x seq x vocab
 #             all_logits = musicbert.predict(  # type:ignore
-#                 head="sequence_multitarget_tagging_head",
+#                 head="sequence_multitask_tagging_head",
 #                 tokens=src_tokens,
 #                 return_logits=True,
 #             )

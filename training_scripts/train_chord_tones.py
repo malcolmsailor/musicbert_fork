@@ -69,7 +69,7 @@ parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
 parser.add_argument("--lr", type=float, default=PEAK_LR)
 parser.add_argument("--lr-scheduler", type=str, default="polynomial_decay")
 parser.add_argument("--checkpoint", "-c", default=DEFAULT_CHECKPOINT)
-parser.add_argument("--multitarget", action="store_true")
+parser.add_argument("--multitask", action="store_true")
 parser.add_argument("--conditioning", type=str, default=None)
 parser.add_argument("--sequence-level", action="store_true")
 parser.add_argument("--dryrun", action="store_true")
@@ -92,7 +92,7 @@ parser.add_argument(
 )
 args, args_to_pass_on_to_train = parser.parse_known_args()
 
-assert not (args.sequence_level and args.multitarget)
+assert not (args.sequence_level and args.multitask)
 
 TOKENS_PER_SAMPLE = 8192
 
@@ -130,17 +130,15 @@ else:
 DATA_BIN_DIR = args.data_bin_dir.rstrip(os.path.sep)
 
 if args.conditioning is not None:
-    # assume multitarget for now
-    TASK = "musicbert_conditioned_multitarget_sequence_tagging"
-    CRITERION = "conditioned_multitarget_sequence_tagging"
-    HEAD_NAME = (
-        "sequence_multitarget_tagging_head"  # TODO: (Malcolm 2024-03-02) update
-    )
+    # assume multitask for now
+    TASK = "musicbert_conditioned_multitask_sequence_tagging"
+    CRITERION = "conditioned_multitask_sequence_tagging"
+    HEAD_NAME = "sequence_multitask_tagging_head"  # TODO: (Malcolm 2024-03-02) update
 
-elif args.multitarget:
-    TASK = "musicbert_multitarget_sequence_tagging"
-    HEAD_NAME = "sequence_multitarget_tagging_head"
-    CRITERION = "multitarget_sequence_tagging"
+elif args.multitask:
+    TASK = "musicbert_multitask_sequence_tagging"
+    HEAD_NAME = "sequence_multitask_tagging_head"
+    CRITERION = "multitask_sequence_tagging"
 elif args.sequence_level:
     TASK = "sentence_prediction"
     HEAD_NAME = "sequence_level_head"
@@ -178,7 +176,7 @@ else:
 
     RESTORE_FLAG = "" if not args.checkpoint else f"--restore-file {args.checkpoint}"
 
-    if args.multitarget:
+    if args.multitask:
         num_classes = []
         for i in count():
             label_dict_file = os.path.join(DATA_BIN_DIR, f"label{i}", "dict.txt")
@@ -209,18 +207,18 @@ else:
             )
 
     # TASK = (
-    #     "musicbert_multitarget_sequence_tagging"
-    #     if args.multitarget
+    #     "musicbert_multitask_sequence_tagging"
+    #     if args.multitask
     #     else "musicbert_sequence_tagging"
     # )
 
     # HEAD_NAME = (
-    #     "sequence_multitarget_tagging_head"
-    #     if args.multitarget
+    #     "sequence_multitask_tagging_head"
+    #     if args.multitask
     #     else "sequence_tagging_head"
     # )
     # CRITERION = (
-    #     "multitarget_sequence_tagging" if args.multitarget else "sequence_tagging"
+    #     "multitask_sequence_tagging" if args.multitask else "sequence_tagging"
     # )
 
     SHARED_ARGS = (
@@ -392,9 +390,9 @@ else:
 
         for predict_split in args.predict_splits:
             # PREDICTIONS_OUTPUT = os.path.join(PREDICTIONS_PATH, predict_split)
-            if args.multitarget:
+            if args.multitask:
                 PREDICTIONS_SCRIPT = os.path.join(
-                    SCRIPT_DIR, "..", "eval_scripts", "save_multi_target_predictions.py"
+                    SCRIPT_DIR, "..", "eval_scripts", "save_multi_task_predictions.py"
                 )
             else:
                 PREDICTIONS_SCRIPT = os.path.join(

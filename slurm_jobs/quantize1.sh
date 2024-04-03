@@ -17,7 +17,7 @@ python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
     -d /home/ms3682/project/datasets/quantize_data_bin \
     -a base \
     -W quantize_classification \
-    --multitarget \
+    --multitask \
     "${@}"
 
 set +x
