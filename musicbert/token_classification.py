@@ -170,7 +170,7 @@ class SequenceTaggingCriterion(FairseqCriterion):
             help="scales loss weights where 0=no weighting and 1=weighting by token frequency",
         )
         # TODO: (Malcolm 2023-11-22) implement these args? (added for compatibility
-        #   with multi-target token classification interface)
+        #   with multitask token classification interface)
         parser.add_argument("--example-network-inputs-to-save", type=int, default=0)
         parser.add_argument("--example-network-inputs-path", type=str, default=None)
         parser.add_argument("--p-norm-loss", action="store_true", default=False)

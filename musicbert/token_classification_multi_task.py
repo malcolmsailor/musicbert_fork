@@ -104,7 +104,7 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
         self.multi_tag_sub_heads = nn.ModuleList(sub_heads)
         if liebel_loss:
             # (Malcolm 2024-04-01) We actually use the loss_sigma parameter in the
-            #   forward method of MultiTargetSequenceTaggingCriterion. This design
+            #   forward method of MultiTaskSequenceTaggingCriterion. This design
             #   seems like it could be improved upon.
             self.loss_sigma = nn.Parameter(
                 torch.full((len(sub_heads),), 1 / len(sub_heads))
@@ -115,8 +115,8 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
         return x
 
 
-@register_criterion("multitarget_sequence_tagging")
-class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
+@register_criterion("multitask_sequence_tagging")
+class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
     def __init__(self, task, classification_head_name):
         super().__init__(task)
         self.classification_head_name = classification_head_name
@@ -137,7 +137,7 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
     def add_args(parser):
         # fmt: off
         parser.add_argument('--classification-head-name',
-                            default='multitarget_sequence_tagging_head',
+                            default='multitask_sequence_tagging_head',
                             help='name of the classification head to use')
         parser.add_argument('--compound-token-ratio', type=int, default=1)
         parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
@@ -501,8 +501,8 @@ class MultiTargetSequenceTaggingCriterion(FairseqCriterion):
 # #         )
 
 
-@register_task("musicbert_multitarget_sequence_tagging")
-class MultiTargetSequenceTaggingTask(FairseqTask):
+@register_task("musicbert_multitask_sequence_tagging")
+class MultiTaskSequenceTaggingTask(FairseqTask):
     """
     Sequence tagging (also called sentence tagging or sequence labelling) task that predicts a class for each input token.
     Inputs should be stored in 'input0' directory, labels in 'label' directory.
@@ -784,9 +784,9 @@ class MultiTargetSequenceTaggingTask(FairseqTask):
         # We register the sequence tagging head after any freezing so that it won't
         #   be frozen
 
-        model.register_multitarget_sequence_tagging_head(
+        model.register_multitask_sequence_tagging_head(
             getattr(
-                args, "classification_head_name", "multitarget_sequence_tagging_head"
+                args, "classification_head_name", "multitask_sequence_tagging_head"
             ),
             num_classes=num_classes,
             sequence_tagging=True,

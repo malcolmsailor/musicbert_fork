@@ -40,7 +40,7 @@ from fairseq.tasks.sentence_prediction import SentencePredictionTask
 #   dropout on a per-layer basis.)
 from musicbert.freezable_roberta import FreezableRobertaEncoder
 from musicbert.token_classification import RobertaSequenceTaggingHead
-from musicbert.token_classification_multi_target import RobertaSequenceMultiTaggingHead
+from musicbert.token_classification_multi_task import RobertaSequenceMultiTaggingHead
 
 warnings.filterwarnings("ignore", message=".*NVIDIA's apex library.*")
 
@@ -466,7 +466,7 @@ class MusicBERTModel(RobertaModel):
             do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
         )
 
-    def register_multitarget_sequence_tagging_head(
+    def register_multitask_sequence_tagging_head(
         self,
         name,
         num_classes: Sequence[int],

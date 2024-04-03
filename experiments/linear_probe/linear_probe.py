@@ -542,7 +542,7 @@ def init(config: Config):
         checkpoint_file=config.checkpoint,
         data_name_or_path=config.data_dir,
         user_dir=USER_DIR,
-        task="musicbert_multitarget_sequence_tagging",
+        task="musicbert_multitask_sequence_tagging",
         ref_dir=config.ref_dir,
         target_names=target_names,
     )

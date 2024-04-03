@@ -57,7 +57,7 @@ def main():
         checkpoint_file=config.checkpoint,
         data_name_or_path=config.data_dir,
         user_dir=config.user_dir,
-        task="musicbert_multitarget_sequence_tagging",
+        task="musicbert_multitask_sequence_tagging",
     ).model
 
     musicbert.eval()  # type:ignore
@@ -67,12 +67,12 @@ def main():
     output, _ = musicbert(
         sample_input,
         return_all_hiddens=False,
-        classification_head_name="sequence_multitarget_tagging_head",
+        classification_head_name="sequence_multitask_tagging_head",
     )  # type:ignore
     output1, x = musicbert(
         sample_input,
         return_all_hiddens=True,
-        classification_head_name="sequence_multitarget_tagging_head",
+        classification_head_name="sequence_multitask_tagging_head",
     )  # type:ignore
 
     for o1, o2 in zip(output, output1):

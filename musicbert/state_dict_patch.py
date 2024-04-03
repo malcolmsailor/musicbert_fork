@@ -33,24 +33,24 @@ def upgrade_state_dict_named(self, state_dict, name):
             continue
 
         head_name = k[len(prefix + "classification_heads.") :].split(".")[0]
-        multitarget_head = head_name == "sequence_multitarget_tagging_head"
-        if multitarget_head:
+        multitask_head = head_name == "sequence_multitask_tagging_head"
+        if multitask_head:
             # This actually a subhead
             if "multi_tag_sub_heads" in k:
                 # At a certain point I tried renaming _sub_heads while debugging,
                 #   this line is here for compatibility.
                 m = re.search(
-                    r"sequence_multitarget_tagging_head\.multi_tag_sub_heads\.\d+",
+                    r"sequence_multitask_tagging_head\.multi_tag_sub_heads\.\d+",
                     k[len(prefix + "classification_heads.") :],
                 )
             else:
                 m = re.search(
-                    r"sequence_multitarget_tagging_head\._sub_heads\.\d+",
+                    r"sequence_multitask_tagging_head\._sub_heads\.\d+",
                     k[len(prefix + "classification_heads.") :],
                 )
             if m is None:
-                # (Malcolm 2024-04-02) if we have a parameter like 
-                # `'classification_heads.sequence_multitarget_tagging_head.loss_sigma'`,
+                # (Malcolm 2024-04-02) if we have a parameter like
+                # `'classification_heads.sequence_multitask_tagging_head.loss_sigma'`,
                 # then continue
                 continue
 
@@ -65,19 +65,20 @@ def upgrade_state_dict_named(self, state_dict, name):
         ].size(0)
 
         load_checkpoint_heads = getattr(self.args, "load_checkpoint_heads", False)
-        if multitarget_head:
+        if multitask_head:
             assert load_checkpoint_heads, "--load-checkpoint-heads is required"
             if head_name not in classes_per_target:
                 classes_per_target[head_name] = num_classes
-            
-            
+
             try:
                 if self.args.z_combine_procedure == "concat":
-                    assert inner_dim == self.args.encoder_embed_dim + self.args.z_embed_dim
+                    assert (
+                        inner_dim == self.args.encoder_embed_dim + self.args.z_embed_dim
+                    )
                 else:
                     assert inner_dim == self.args.encoder_embed_dim
             except AttributeError:
-                    assert inner_dim == self.args.encoder_embed_dim
+                assert inner_dim == self.args.encoder_embed_dim
         else:
             if load_checkpoint_heads:
                 if head_name not in current_head_names:

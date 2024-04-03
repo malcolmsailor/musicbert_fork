@@ -14,13 +14,11 @@ conda activate newbert
 set -x
 
 python /home/ms3682/code/musicbert_fork/training_scripts/train_chord_tones.py \
-    -d /home/ms3682/project/datasets/chord_tones/fairseq/chord_factors_multi_target_bin \
+    -d /home/ms3682/project/datasets/chord_tones/fairseq/chord_factors_multi_task_bin \
     -a base \
-    -W chord_factors_multi_target \
-    --multitarget \
+    -W chord_factors_multi_task \
+    --multitask \
     --target-names "chord_factor" "chord_tone" "harmony_onset" "bass_pcs" \
     "${@}"
 
 set +x
-
-

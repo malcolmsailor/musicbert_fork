@@ -12,7 +12,7 @@ PREDICTIONS_BASE="/home/ms3682/project/saved_predictions/musicbert_unlabeled"
 CHECKPOINT_BASE="/home/ms3682/project/new_checkpoints/musicbert_fork"
 
 if [[ -z "$1" ]]; then
-    echo Usage: save_multi_target_predictions.sh [run_name]
+    echo Usage: save_multi_task_predictions.sh [run_name]
     echo "   We look for a checkpoint in"
     echo "       $CHECKPOINT_BASE/[run_name]/checkpoint_best.pt"
     echo "   We save predictions to "
@@ -28,11 +28,10 @@ conda activate newbert
 
 set -x
 
-python /home/ms3682/code/musicbert_fork/eval_scripts/save_multi_target_predictions.py \
+python /home/ms3682/code/musicbert_fork/eval_scripts/save_multi_task_predictions.py \
     --data-dir /home/ms3682/project/datasets/unlabeled/ycac_bin/ \
     --checkpoint "${CHECKPOINT_BASE}"/"${run_name}"/checkpoint_best.pt \
-     --output-folder "${PREDICTIONS_BASE}/${run_name}/" \
+    --output-folder "${PREDICTIONS_BASE}/${run_name}/" \
     "${@}"
 
 set +x
-
