@@ -1,3 +1,8 @@
+"""This script is a bit of a mess because it started out as a bash script and then as it
+was getting more elaborate I decided I'd prefer to work in Python so I asked ChatGPT to
+convert it to Python and used that as the base.
+"""
+
 import argparse
 import logging
 import os
