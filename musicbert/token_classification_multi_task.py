@@ -1,5 +1,4 @@
-"""Code in this file is based on this (closed and not merged) PR:
-https://github.com/facebookresearch/fairseq/pull/1709/files
+"""Implements multi-task token classification model.
 """
 
 from itertools import count
@@ -9,7 +8,7 @@ import math
 import os
 import pickle
 import warnings
-from typing import Literal, Sequence
+from typing import Sequence
 
 import numpy as np
 import sklearn.metrics
@@ -24,15 +23,10 @@ from fairseq.data import (
     NestedDictionaryDataset,
     NumelDataset,
     NumSamplesDataset,
-    OffsetTokensDataset,
-    ReplaceDataset,
     RightPadDataset,
     SortDataset,
     data_utils,
 )
-from fairseq.models import register_model, register_model_architecture
-from fairseq.models.roberta.model import RobertaModel
-from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 from fairseq.tasks import FairseqTask, register_task
 from torch import nn
 
@@ -105,7 +99,7 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
         if liebel_loss:
             # (Malcolm 2024-04-01) We actually use the loss_sigma parameter in the
             #   forward method of MultiTaskSequenceTaggingCriterion. This design
-            #   seems like it could be improved upon.
+            #   seems like it could be improved upon to achieve better encapsulation.
             self.loss_sigma = nn.Parameter(
                 torch.full((len(sub_heads),), 1 / len(sub_heads))
             )
@@ -311,16 +305,15 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
             sum(log.get("sample_size", 0) for log in logging_outputs)
         )
 
-        # TODO: (Malcolm 2023-09-11) A few things I don't understand here:
-        #   1. why divide loss by log of 2?
-        #   2. why is "loss" divided by sample_size and "nll_loss"  is divided by
-        #       ntokens?
-        #           Note that ntokens should be the number of tokens including <eos>
-        #               and sample_size should be the number of tokens excluding <eos>
+        # We follow fairseq implementation elsewhere here. Notes
+        #   1. we divide by log(2) to convert from nats to bits
+        #   2. "loss" is divided by sample_size but "nll_loss" is divided by ntokens,
+        #       I'm not sure why. Note that ntokens should be the number of tokens
+        #       including <eos> and sample_size should be the number of tokens
+        #       excluding <eos>
         metrics.log_scalar(
             "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
-        # sample_size should be the number of tokens w/o the
         if sample_size != ntokens:
             metrics.log_scalar(
                 "nll_loss", loss_sum / ntokens / math.log(2), ntokens, round=3
@@ -424,8 +417,9 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
 
             if target_name not in TARGET_INFO["targets_to_log_by_label"]:
                 continue
-            # (Malcolm 2023-10-16) we can use sklearn.metrics.precision_recall_fscore_support
-            #   with average=None to get the results per label instead
+            # (Malcolm 2023-10-16) we could use
+            #   sklearn.metrics.precision_recall_fscore_support with average=None to get
+            #   the results per label instead
             no_specials_mask = y_true >= n_special  # type:ignore
             confused = sklearn.metrics.confusion_matrix(
                 y_true[no_specials_mask] - n_special,
@@ -468,37 +462,6 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
         to True will improves distributed training speed.
         """
         return True
-
-
-# # class MusicBERTSequenceTaggingModel(RobertaModel):
-# #     def register_sequence_tagging_head(
-# #         self, name, num_classes=None, inner_dim=None, **kwargs
-# #     ):
-# #         """Register a classification head."""
-# #         if name in self.classification_heads:
-# #             prev_num_classes = self.classification_heads[  # type:ignore
-# #                 name
-# #             ].out_proj.out_features  # type:ignore
-# #             prev_inner_dim = self.classification_heads[  # type:ignore
-# #                 name
-# #             ].dense.out_features  # type:ignore
-# #             if num_classes != prev_num_classes or inner_dim != prev_inner_dim:
-# #                 LOGGER.warning(
-# #                     're-registering head "{}" with num_classes {} (prev: {}) '
-# #                     "and inner_dim {} (prev: {})".format(
-# #                         name, num_classes, prev_num_classes, inner_dim, prev_inner_dim
-# #                     )
-# #                 )
-# #         self.classification_heads[name] = RobertaSequenceTaggingHead(  # type:ignore
-# #             input_dim=self.args.encoder_embed_dim,  # type:ignore
-# #             inner_dim=inner_dim or self.args.encoder_embed_dim,  # type:ignore
-# #             num_classes=num_classes,
-# #             activation_fn=self.args.pooler_activation_fn,  # type:ignore
-# #             pooler_dropout=self.args.pooler_dropout,  # type:ignore
-# #             q_noise=self.args.quant_noise_pq,  # type:ignore
-# #             qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
-# #             do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
-# #         )
 
 
 @register_task("musicbert_multitask_sequence_tagging")
@@ -555,18 +518,17 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
         self._label_dictionaries = tuple(label_dictionaries)
 
         if not hasattr(args, "max_positions"):
-            # TODO: (Malcolm 2023-09-08) this will raise an attribute error
-            # We just provide max positions as an arg
+            # TODO: (Malcolm 2023-09-08) the commented-out code will raise an attribute
+            #   error. Instead we oblige the user to provide max positions as a CLI arg.
+            # self._max_positions = (
+            #     args.max_source_positions,
+            #     args.max_target_positions,
+            # )
             raise NotImplementedError("Provide '--max-positions'")
-            self._max_positions = (
-                args.max_source_positions,
-                args.max_target_positions,
-            )
         else:
             self._max_positions = args.max_positions
         args.tokens_per_sample = self._max_positions  # tuple[int, int] ?
 
-        # The code from the PR seems to assume that the task has an `args attribute`
         self.args = args
         self.num_targets = len(args.num_classes)
         if args.target_names is None:
@@ -607,7 +569,6 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
         # (Malcolm 2023-09-05) We need the <mask> symbol not because we use it but
         #   so that the dictionary sizes match with the pretrained checkpoints.
         dictionary.add_symbol("<mask>")
-        # TODO: (Malcolm 2023-09-15) do we also need <mask> for label dictionaries?
         return dictionary
 
     @classmethod
@@ -681,11 +642,11 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
                 )
                 continue
 
-            # (Malcolm 2023-09-08) The code that I based this off of includes the
-            #   following commented out lines so that we only predict items in the
-            #   target vocabulary and not specials. However that doesn't seem necessary
-            #   and there seem to be some weird bugs going on so I'm disabling that for
-            #   now.
+            # (Malcolm 2023-09-08) The PR I initially based the token classification
+            #   code off of includes the following commented out lines so that we only
+            #   predict items in the target vocabulary and not specials. However that
+            #   doesn't seem necessary and there seem to be some weird bugs related to
+            #   it on so I'm disabling it for now at least.
 
             # OffsetTokensDataset offsets tokens to get the targets to the
             # correct range (0,1,2,...)
@@ -728,18 +689,11 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
             }
         )
 
-        nested_dataset = NestedDictionaryDataset(
-            dataset,
-            sizes=[src_tokens.sizes],
-        )
+        nested_dataset = NestedDictionaryDataset(dataset, sizes=[src_tokens.sizes])
 
         with data_utils.numpy_seed(self.args.seed):  # type:ignore
             shuffle = np.random.permutation(len(src_tokens))
-        dataset = SortDataset(
-            nested_dataset,
-            # shuffle
-            sort_order=[shuffle],
-        )
+        dataset = SortDataset(nested_dataset, sort_order=[shuffle])
 
         LOGGER.info("Loaded {0} with #samples: {1}".format(split, len(dataset)))
 

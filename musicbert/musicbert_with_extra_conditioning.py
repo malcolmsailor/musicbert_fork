@@ -1,23 +1,20 @@
+"""
+Implements a dual-encoder version of MusicBERT, which we use for predicting roman 
+numerals conditional on keys.
+"""
+
 import logging
 import os
-from typing import List, Optional
+from typing import List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from fairseq.criterions import FairseqCriterion, register_criterion
+from fairseq.criterions import register_criterion
 from fairseq.data import (
-    Dictionary,
-    FairseqDataset,
-    IdDataset,
     NestedDictionaryDataset,
-    NumelDataset,
-    NumSamplesDataset,
-    OffsetTokensDataset,
-    ReplaceDataset,
     RightPadDataset,
     SortDataset,
-    data_utils,
 )
 from fairseq.models import register_model, register_model_architecture
 from fairseq.models.roberta.hub_interface import RobertaHubInterface
@@ -139,8 +136,6 @@ class DualEncoder(MusicBERTEncoder):
 
 @register_model("musicbert_dual_encoder")
 class DualEncoderModel(MusicBERTModel):
-    # TODO: (Malcolm 2024-03-01) use register_multitask_sequence_tagging_head with
-    # encoder_embed_dim set appropriately
     encoder_cls = DualEncoder
 
     @classmethod
@@ -167,20 +162,10 @@ class DualEncoderModel(MusicBERTModel):
         LOGGER.info(x["args"])
         return DualEncoderMusicBERTHubInterface(x["args"], x["task"], x["models"][0])
 
-    # def forward(
-    #     self,
-    #     src_tokens,
-    #     features_only=False,
-    #     return_all_hiddens=False,
-    #     classification_head_name=None,
-    #     z_tokens=None,
-    #     **kwargs,
-    # ):
-    #     breakpoint()
-
 
 class DualEncoderMusicBERTHubInterface(RobertaHubInterface):
-    # We need to override in order to provide conditioning to the predict method
+    # We need to subclass the parent class in order to provide conditioning in the
+    # predict method
 
     def extract_features(
         self,
@@ -234,7 +219,6 @@ class ConditionedMultiTaskSequenceTaggingCriterion(MultiTaskSequenceTaggingCrite
         parser.add_argument("--z-encoder", default="embedding", type=str)
         parser.add_argument("--z-embed-dim", default=128, type=int)
         parser.add_argument("--z-mlp-layers", default=2, type=int)
-        # TODO: (Malcolm 2024-03-04)
         parser.add_argument("--z-mlp-norm", default="yes", choices=["yes", "no"])
         parser.add_argument(
             "--z-combine-procedure", default="concat", choices=["concat", "project"]
@@ -259,7 +243,7 @@ def musicbert_dual_encoder_architecture(args):
     args.z_vocab_size = getattr(args, "z_vocab_size", 128)
     args.z_mlp_layers = getattr(args, "z_mlp_layers", 2)
     args.z_mlp_norm = getattr(args, "z_mlp_norm", "yes")
-    # "concat" or "project"
+    # z_combine_procedure: either "concat" or "project"
     args.z_combine_procedure = getattr(args, "z_combine_procedure", "concat")
 
 
@@ -326,32 +310,6 @@ class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
         LOGGER.info(f"[conditioning] dictionary: {len(cond_dict)} types")
         return cls(args, data_dict, label_dicts, cond_dict)
 
-    # TODO: (Malcolm 2024-03-04) remove in favor of monkeypatch
-    # def _build_model_helper_load_checkpoint(self, model, args):
-    #     if not args.restore_file:
-    #         return
-    #     # Load the original pretrained model
-    #     from fairseq.checkpoint_utils import load_model_ensemble
-
-    #     models, _ = load_model_ensemble(
-    #         [args.restore_file],
-    #         task=MultiTaskSequenceTaggingTask(
-    #             args, self.dictionary, self._label_dictionaries  # type:ignore
-    #         ),
-    #     )
-    #     pretrained_model = models[0]
-
-    #     # Transfer weights from the pretrained model
-    #     model_dict = model.state_dict()
-    #     for name, param in pretrained_model.named_parameters():
-    #         if name in model_dict:
-    #             model_dict[name].copy_(param.data)
-    #         else:
-    #             print(f"Skipping {name} as it's not in the custom model")
-
-    #     # Now remove args.restor_file so we don't try to load the checkpoint later
-    #     args.restore_file = None
-
     def build_model(self, args):
         from fairseq import models
 
@@ -359,7 +317,6 @@ class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
         model = models.build_model(args, self)
         self._build_model_freeze_helper(args, model)  # type:ignore
         num_classes = self._build_model_num_classes_helper()  # type:ignore
-        # TODO: (Malcolm 2024-03-02)
 
         model.register_multitask_sequence_tagging_head(
             getattr(
@@ -368,7 +325,6 @@ class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
             num_classes=num_classes,
             sequence_tagging=True,
             encoder_embed_dim=model.encoder.output_dim,
-            # encoder_embed_dim=args.encoder_embed_dim + args.z_embed_dim,
         )
         # We can't use the default fairseq checkpoint loading implementation because
         #   it uses strict=True which means that the encoder will cause the

@@ -23,12 +23,14 @@ def p_norm(
     out = (sum + min_eps).pow(1 / p)
     return out.type(dtype)
 
-    # return (x1 - x2).abs().pow(p).sum(axis=-1).pow(1 / p)  # type:ignore
-
 
 def p_norm_loss(
     logits: torch.Tensor, p: float = 2.0, alpha: float = 0.01, reduction="mean"
 ):
+    """
+    An experimental loss function for penalizing changes in the distribution between
+    successive time steps.
+    """
     shape = logits.shape
     # We probably want to normalize the logits before calculating the norm since
     #   otherwise we are effectively regularizing them to be small (so the absolute
@@ -47,10 +49,3 @@ def p_norm_loss(
     else:
         raise NotImplementedError
     return alpha * norm
-
-
-def cosine_sim_loss(logits: torch.Tensor, alpha: float = 0.01, reduction="mean"):
-    # We probably don't want to use cosine similarity because vectors that are
-    #   scaled versions of one another (e.g., [1, 2, 4], and [2, 4, 8]) have
-    #   perfect cosine similarity but are quite different interpreted as logits
-    raise NotImplementedError

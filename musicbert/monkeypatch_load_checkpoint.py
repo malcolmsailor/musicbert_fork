@@ -1,6 +1,7 @@
 """
-Just sets load_state_dict(strict=False)
-
+Monkeypatches `fairseq.trainer.Trainer.load_checkpoint` so that it calls 
+`load_state_dict()` with strict=False. This is needed to load pretrained checkpoints 
+to multi-task token-classification model.
 """
 
 import time

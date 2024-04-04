@@ -1,3 +1,9 @@
+"""
+Patches `fairseq.models.roberta.RobertaModel.upgrade_state_dict_named` so it works
+in the multi-task case.
+
+"""
+
 import logging
 import re
 
