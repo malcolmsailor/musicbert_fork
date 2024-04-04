@@ -1,9 +1,0 @@
-bash launch_sbatch.sh slurm_jobs/save_predictions.sh \
-    --data-dir ~/project/datasets/chord_tones/fairseq/no_susp_bin \
-    --checkpoint /home/ms3682/project/new_checkpoints/musicbert_fork/26213324/checkpoint_best.pt \
-    --output-file ~/project/saved_predictions.txt
-
-python eval_scripts/save_multi_target_predictions.py \
-    --data-dir ~/project/datasets/chord_tones/fairseq/many_target_bin \
-    --checkpoint /home/ms3682/project/new_checkpoints/musicbert_fork/26910010/checkpoint_best.pt \
-    --output-folder ~/project/saved_mt_predictions --msdebug
