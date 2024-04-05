@@ -1,5 +1,5 @@
 <!-- TODO 2024-04-03  -->
-A fork of MusicBERT <!-- TODO 2024-04-04 link --> for token classification for Roman Numeral analysis and other music theory tasks
+A fork of MusicBERT <!-- TODO 2024-04-04 link --> for token classification for Roman Numeral analysis and other music theory tasks.
 
 The main differences are:
 - freezable version for fine-tuning

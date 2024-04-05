@@ -81,7 +81,7 @@ if [[ ! -e ${DATA_RAW}/targets_0_train.txt ]]; then
     # each row.
     set +x
 else
-    # Multi-target
+    # Multi-task
     target_i=0
     while true; do
         if [[ ! -e ${DATA_RAW}/targets_${target_i}_train.txt ]]; then
