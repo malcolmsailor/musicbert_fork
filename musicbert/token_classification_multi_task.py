@@ -115,6 +115,21 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
         return x
 
 
+class RobertaSequenceNADEMultiTaggingHead(nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        inner_dim,
+        num_classes: Sequence[int],
+        activation_fn,
+        pooler_dropout,
+        q_noise=0,
+        qn_block_size=8,
+        do_spectral_norm=False,
+    ):
+        super().__init__()
+
+
 @register_criterion("multitask_sequence_tagging")
 class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
     def __init__(self, task, classification_head_name):
