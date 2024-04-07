@@ -505,9 +505,9 @@ class MusicBERTModel(RobertaModel):
                     )
                 )
 
-        if name == "multitask_sequence_tagging_head":
+        if name == "sequence_multitask_tagging_head":
             head_cls = RobertaSequenceMultiTaggingHead
-        elif name == "multitask_conditional_sequence_tagging_head":
+        elif name == "sequence_multitask_conditional_tagging_head":
             head_cls = RobertaSequenceConditionalMultiTaggingHead
         else:
             raise ValueError
