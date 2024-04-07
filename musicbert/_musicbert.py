@@ -40,7 +40,10 @@ from fairseq.tasks.sentence_prediction import SentencePredictionTask
 #   dropout on a per-layer basis.)
 from musicbert.freezable_roberta import FreezableRobertaEncoder
 from musicbert.token_classification import RobertaSequenceTaggingHead
-from musicbert.token_classification_multi_task import RobertaSequenceMultiTaggingHead
+from musicbert.token_classification_multi_task import (
+    RobertaSequenceMultiTaggingHead,
+    RobertaSequenceConditionalMultiTaggingHead,
+)
 
 warnings.filterwarnings("ignore", message=".*NVIDIA's apex library.*")
 
@@ -501,20 +504,26 @@ class MusicBERTModel(RobertaModel):
                         name, num_classes, prev_num_classes, inner_dim, prev_inner_dim
                     )
                 )
+
+        if name == "multitask_sequence_tagging_head":
+            head_cls = RobertaSequenceMultiTaggingHead
+        elif name == "multitask_conditional_sequence_tagging_head":
+            head_cls = RobertaSequenceConditionalMultiTaggingHead
+        else:
+            raise ValueError
+
         self.classification_heads[  # type:ignore
             name
-        ] = (
-            RobertaSequenceMultiTaggingHead(
-                input_dim=encoder_embed_dim,
-                inner_dim=inner_dim or encoder_embed_dim,
-                num_classes=num_classes,
-                activation_fn=self.args.pooler_activation_fn,  # type:ignore
-                pooler_dropout=self.args.pooler_dropout,  # type:ignore
-                q_noise=self.args.quant_noise_pq,  # type:ignore
-                qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
-                do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
-                liebel_loss=self.args.liebel_loss,  # type:ignore
-            )
+        ] = head_cls(
+            input_dim=encoder_embed_dim,
+            inner_dim=inner_dim or encoder_embed_dim,
+            num_classes=num_classes,
+            activation_fn=self.args.pooler_activation_fn,  # type:ignore
+            pooler_dropout=self.args.pooler_dropout,  # type:ignore
+            q_noise=self.args.quant_noise_pq,  # type:ignore
+            qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
+            do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
+            liebel_loss=self.args.liebel_loss,  # type:ignore
         )
 
 
