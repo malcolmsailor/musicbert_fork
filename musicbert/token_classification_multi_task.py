@@ -129,6 +129,15 @@ class RobertaSequenceNADEMultiTaggingHead(nn.Module):
     ):
         super().__init__()
 
+        # unimplemented parameters
+        assert not q_noise
+        assert not do_spectral_norm
+
+        fcs = []
+        c = TODO
+        for n_class in num_classes:
+            fcs.append(nn.Linear(input_dim, n_class))
+
 
 @register_criterion("multitask_sequence_tagging")
 class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
