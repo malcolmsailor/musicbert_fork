@@ -137,7 +137,7 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
     def add_args(parser):
         # fmt: off
         parser.add_argument('--classification-head-name',
-                            default='multitask_sequence_tagging_head',
+                            default='sequence_multitask_tagging_head',
                             help='name of the classification head to use')
         parser.add_argument('--compound-token-ratio', type=int, default=1)
         parser.add_argument('--example-network-inputs-to-save', type=int, default=0)
@@ -786,7 +786,7 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
 
         model.register_multitask_sequence_tagging_head(
             getattr(
-                args, "classification_head_name", "multitask_sequence_tagging_head"
+                args, "classification_head_name", "sequence_multitask_tagging_head"
             ),
             num_classes=num_classes,
             sequence_tagging=True,
