@@ -363,7 +363,7 @@ class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
 
         model.register_multitask_sequence_tagging_head(
             getattr(
-                args, "classification_head_name", "multitask_sequence_tagging_head"
+                args, "classification_head_name", "sequence_multitask_tagging_head"
             ),
             num_classes=num_classes,
             sequence_tagging=True,
