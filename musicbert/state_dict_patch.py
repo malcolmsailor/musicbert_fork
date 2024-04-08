@@ -33,7 +33,8 @@ def upgrade_state_dict_named(self, state_dict, name):
             continue
 
         head_name = k[len(prefix + "classification_heads.") :].split(".")[0]
-        multitask_head = head_name == "sequence_multitask_tagging_head"
+        multitask_head = bool(re.match("sequence_multitask.*tagging_head$", head_name))
+
         if multitask_head:
             # This actually a subhead
             if "multi_tag_sub_heads" in k:
