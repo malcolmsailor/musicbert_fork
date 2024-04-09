@@ -81,7 +81,10 @@ class DualEncoder(MusicBERTEncoder):
     def __init__(self, args, dictionary, upsample: bool = True):
         super().__init__(args, dictionary, upsample=upsample)
         if args.z_encoder == "embedding":
-            self.z_encoder = nn.Embedding(args.z_vocab_size, args.z_embed_dim)
+            self.z_encoder = nn.Sequential(
+                nn.Embedding(args.z_vocab_size, args.z_embed_dim),
+                nn.Dropout(args.dropout),
+            )
         elif args.z_encoder == "mlp":
             self.z_encoder = MLP(
                 n_layers=args.z_mlp_layers,
