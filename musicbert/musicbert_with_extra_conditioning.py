@@ -78,8 +78,11 @@ class DualEncoder(MusicBERTEncoder):
     def __init__(self, args, dictionary, upsample: bool = True):
         super().__init__(args, dictionary, upsample=upsample)
         if args.z_encoder == "embedding":
-            self.z_encoder = nn.Embedding(args.z_vocab_size, args.z_embed_dim)
-        if args.z_encoder == "mlp":
+            self.z_encoder = nn.Sequential(
+                nn.Embedding(args.z_vocab_size, args.z_embed_dim),
+                nn.Dropout(args.dropout),
+            )
+        elif args.z_encoder == "mlp":
             self.z_encoder = MLP(
                 n_layers=args.z_mlp_layers,
                 vocab_size=args.z_vocab_size,
@@ -320,7 +323,7 @@ class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
 
         model.register_multitask_sequence_tagging_head(
             getattr(
-                args, "classification_head_name", "multitask_sequence_tagging_head"
+                args, "classification_head_name", "sequence_multitask_tagging_head"
             ),
             num_classes=num_classes,
             sequence_tagging=True,

@@ -26,7 +26,8 @@ module load miniconda
 conda activate write_chord_tones_seqs
 
 set -x
-SRC_DATA_DIR=${INPUT_DIR} python -m write_seqs \
+python -m write_seqs \
+    --src-data-dir ${INPUT_DIR} \
     --data-settings ~/code/write_seqs/configs/oct_data_abstract.yaml \
     --output-dir ${INTERMEDIATE_DIR} \
     --input-paths-dir ${INPUTS_PATHS}

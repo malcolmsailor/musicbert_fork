@@ -453,19 +453,12 @@ class SequenceTaggingTask(FairseqTask):
             sys.excepthook = custom_excepthook
         super().__init__(args)
         self.dictionary = data_dictionary
-        # # (Malcolm 2023-09-12) for printing label names to work above these
-        # #   assertions need to be correct. If we remove the staticmethod decorator
-        # #   we could probably get rid of this
-        # assert label_dictionary[4] == "yes"
-        # assert label_dictionary[5] == "no"
         self._label_dictionary = label_dictionary
 
         if not hasattr(args, "max_positions"):
             # TODO: (Malcolm 2023-09-08) this will raise an attribute error
             # We just provide max positions as an arg
-            self._max_positions = 8192
-            # TODO: (Malcolm 2023-09-20) restore
-            # raise NotImplementedError("Provide '--max-positions'")
+            raise NotImplementedError("Provide '--max-positions'")
             # self._max_positions = (
             #     args.max_source_positions,
             #     args.max_target_positions,
