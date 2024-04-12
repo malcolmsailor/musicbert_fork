@@ -157,10 +157,7 @@ if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
 else:
     missing_args = []
-    for arg, arg_name in [
-        (args.architecture, "--architecture"),
-        (args.wandb_project, "--wandb-project"),
-    ]:
+    for arg, arg_name in [(args.architecture, "--architecture")]:
         if arg is None:
             missing_args.append(arg_name)
     if missing_args:
@@ -175,7 +172,9 @@ else:
     NN_ARCH = f"musicbert_{args.architecture}"
     WANDB_PROJECT = args.wandb_project
     WANDB_FLAG = (
-        "" if WANDB_PROJECT == "scratch" else f"--wandb-project {WANDB_PROJECT}"
+        ""
+        if ((not WANDB_PROJECT) or WANDB_PROJECT == "scratch")
+        else f"--wandb-project {WANDB_PROJECT}"
     )
 
     RESTORE_FLAG = "" if not args.checkpoint else f"--restore-file {args.checkpoint}"
