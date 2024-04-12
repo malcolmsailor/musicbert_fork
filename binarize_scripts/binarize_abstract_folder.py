@@ -2,6 +2,7 @@ from collections import defaultdict
 from itertools import chain
 import os
 import re
+import shutil
 import subprocess
 import glob
 
@@ -15,6 +16,7 @@ class Config:
     input_folder: str
     workers: int = 24
     inputs_name: str = "midi"
+    overwrite: bool = False
 
 
 conf = OmegaConf.from_cli(sys.argv[1:])
@@ -24,7 +26,7 @@ assert re.search(r"_raw/?$", config.input_folder)
 
 output_folder = config.input_folder.rstrip(os.path.sep)[:-4] + "_bin"
 
-assert not os.path.exists(output_folder)
+# assert not os.path.exists(output_folder)
 
 assert config.workers > 0
 
@@ -36,6 +38,9 @@ files = [
         glob.glob(os.path.join(config.input_folder, "*_test.txt")),
     )
 ]
+
+# Exclude metadata files
+files = [f for f in files if not f.startswith("metadata_")]
 
 srcdict_path = os.path.join(config.input_folder, "dict.input.txt")
 assert os.path.exists(srcdict_path)
@@ -53,6 +58,12 @@ assert inputs
 
 
 def do_feature(feature, files, output_subfolder, src_dict=None):
+    destdir = os.path.join(output_folder, output_subfolder)
+    if os.path.exists(destdir):
+        if config.overwrite:
+            shutil.rmtree(destdir)
+        else:
+            print(f"{destdir} exists, skipping")
     command = ["fairseq-preprocess", "--only-source"]
     if f"{feature}_train.txt" in files:
         command.extend(
