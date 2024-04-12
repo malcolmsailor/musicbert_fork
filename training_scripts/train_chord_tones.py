@@ -104,31 +104,35 @@ TOKENS_PER_SAMPLE = 8192
 UPDATE_FREQ_DENOM = max(N_GPU_LOCAL, 1)
 UPDATE_FREQ = min(args.update_batch_size // (args.batch_size * UPDATE_FREQ_DENOM), 1)
 
-NEW_CHECKPOINTS_DIR = os.environ["NEW_CHECKPOINTS_DIR"]
-PREDICTIONS_DIR = os.environ["SAVED_PREDICTIONS_DIR"]
-EXAMPLE_INPUTS_DIR = os.environ["EXAMPLE_INPUTS_DIR"]
+NEW_CHECKPOINTS_DIR = os.getenv(
+    "RN_CKPTS", os.path.expanduser("~/saved_checkpoints/rnbert")
+)
+PREDICTIONS_DIR = os.getenv(
+    "RN_PREDS", os.path.expanduser("~/saved_predictions/rnbert")
+)
+EXAMPLE_INPUTS_DIR = os.getenv("EXAMPLE_INPUTS_DIR", "")
 
 SLURM_ID = os.getenv("SLURM_JOB_ID", None)
 
 if SLURM_ID is not None:
     # We're running a Slurm job
-    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", SLURM_ID)
+    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, SLURM_ID)
     # We can't use os.cpu_count() because it will show all the cpus on the node
     #   rather than just those allocated to our job
     CPUS_ON_NODE = os.getenv("SLURM_CPUS_ON_NODE", 1)
-    PREDICTIONS_PATH = os.path.join(PREDICTIONS_DIR, "musicbert_fork", SLURM_ID)
-    EXAMPLE_INPUTS_PATH = os.path.join(EXAMPLE_INPUTS_DIR, "musicbert_fork", SLURM_ID)
+    PREDICTIONS_PATH = os.path.join(PREDICTIONS_DIR, SLURM_ID)
+    if EXAMPLE_INPUTS_DIR:
+        EXAMPLE_INPUTS_PATH = os.path.join(EXAMPLE_INPUTS_DIR, SLURM_ID)
+    else:
+        EXAMPLE_INPUTS_PATH = ""
 else:
     # We're not running a Slurm job
-    SAVE_DIR = os.path.join(
-        NEW_CHECKPOINTS_DIR, "musicbert_fork", str(round(time.time()))
-    )
-    PREDICTIONS_PATH = os.path.join(
-        PREDICTIONS_DIR, "musicbert_fork", str(round(time.time()))
-    )
-    EXAMPLE_INPUTS_PATH = os.path.join(
-        EXAMPLE_INPUTS_DIR, "musicbert_fork", str(round(time.time()))
-    )
+    SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, str(round(time.time())))
+    PREDICTIONS_PATH = os.path.join(PREDICTIONS_DIR, str(round(time.time())))
+    if EXAMPLE_INPUTS_DIR:
+        EXAMPLE_INPUTS_PATH = os.path.join(EXAMPLE_INPUTS_DIR, str(round(time.time())))
+    else:
+        EXAMPLE_INPUTS_PATH = ""
 
     CPUS_ON_NODE = os.cpu_count()
 
@@ -278,7 +282,7 @@ else:
                 ),
                 (
                     f"--example-network-inputs-path {EXAMPLE_INPUTS_PATH}"
-                    if not args.sequence_level
+                    if (EXAMPLE_INPUTS_PATH and not args.sequence_level)
                     else ""
                 ),
             ]
@@ -312,7 +316,7 @@ else:
         ).split()
     )
     if args.skip_training:
-        SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", args.run_name)
+        SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, args.run_name)
     BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
     TEST_ARGS = (
         SHARED_ARGS
@@ -377,11 +381,9 @@ else:
     if args.skip_training:
         if not args.run_name:
             raise ValueError(f"--run-name is required if --skip-training")
-        SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, "musicbert_fork", args.run_name)
+        SAVE_DIR = os.path.join(NEW_CHECKPOINTS_DIR, args.run_name)
         BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
-        PREDICTIONS_PATH = os.path.join(
-            PREDICTIONS_DIR, "musicbert_fork", args.run_name
-        )
+        PREDICTIONS_PATH = os.path.join(PREDICTIONS_DIR, args.run_name)
     else:
         BEST_CHECKPOINT_PATH = os.path.join(SAVE_DIR, "checkpoint_best.pt")
 
