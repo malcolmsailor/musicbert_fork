@@ -431,11 +431,19 @@ else:
 
             # Copy the metadata file into the predictions folder too
             assert DATA_BIN_DIR.endswith("_bin")
-            DATA_RAW_DIR = DATA_BIN_DIR[:-4] + "_raw"
-            shutil.copy(
-                os.path.join(DATA_RAW_DIR, f"metadata_{predict_split}.txt"),
-                os.path.join(PREDICTIONS_PATH, f"metadata_{predict_split}.txt"),
-            )
+            metadata_path = os.path.join(DATA_BIN_DIR, f"metadata_{predict_split}.txt")
+            if not os.path.exists(metadata_path):
+                DATA_RAW_DIR = DATA_BIN_DIR[:-4] + "_raw"
+                metadata_path = os.path.join(
+                    DATA_RAW_DIR, f"metadata_{predict_split}.txt"
+                )
+            if not os.path.exists(metadata_path):
+                LOGGER.warning(f"Couldn't find metadata file for {predict_split}")
+            else:
+                shutil.copy(
+                    metadata_path,
+                    os.path.join(PREDICTIONS_PATH, f"metadata_{predict_split}.txt"),
+                )
     else:
         LOGGER.info(f"Didn't find {BEST_CHECKPOINT_PATH}")
         raise FileNotFoundError(BEST_CHECKPOINT_PATH)
