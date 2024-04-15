@@ -157,10 +157,7 @@ if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-test-metrics flag, skipping test metrics")
 else:
     missing_args = []
-    for arg, arg_name in [
-        (args.architecture, "--architecture"),
-        (args.wandb_project, "--wandb-project"),
-    ]:
+    for arg, arg_name in [(args.architecture, "--architecture")]:
         if arg is None:
             missing_args.append(arg_name)
     if missing_args:
@@ -175,7 +172,9 @@ else:
     NN_ARCH = f"musicbert_{args.architecture}"
     WANDB_PROJECT = args.wandb_project
     WANDB_FLAG = (
-        "" if WANDB_PROJECT == "scratch" else f"--wandb-project {WANDB_PROJECT}"
+        ""
+        if ((not WANDB_PROJECT) or WANDB_PROJECT == "scratch")
+        else f"--wandb-project {WANDB_PROJECT}"
     )
 
     RESTORE_FLAG = "" if not args.checkpoint else f"--restore-file {args.checkpoint}"
@@ -427,11 +426,19 @@ else:
 
             # Copy the metadata file into the predictions folder too
             assert DATA_BIN_DIR.endswith("_bin")
-            DATA_RAW_DIR = DATA_BIN_DIR[:-4] + "_raw"
-            shutil.copy(
-                os.path.join(DATA_RAW_DIR, f"metadata_{predict_split}.txt"),
-                os.path.join(PREDICTIONS_PATH, f"metadata_{predict_split}.txt"),
-            )
+            metadata_path = os.path.join(DATA_BIN_DIR, f"metadata_{predict_split}.txt")
+            if not os.path.exists(metadata_path):
+                DATA_RAW_DIR = DATA_BIN_DIR[:-4] + "_raw"
+                metadata_path = os.path.join(
+                    DATA_RAW_DIR, f"metadata_{predict_split}.txt"
+                )
+            if not os.path.exists(metadata_path):
+                LOGGER.warning(f"Couldn't find metadata file for {predict_split}")
+            else:
+                shutil.copy(
+                    metadata_path,
+                    os.path.join(PREDICTIONS_PATH, f"metadata_{predict_split}.txt"),
+                )
     else:
         LOGGER.info(f"Didn't find {BEST_CHECKPOINT_PATH}")
         raise FileNotFoundError(BEST_CHECKPOINT_PATH)

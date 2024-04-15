@@ -64,6 +64,7 @@ def do_feature(feature, files, output_subfolder, src_dict=None):
             shutil.rmtree(destdir)
         else:
             print(f"{destdir} exists, skipping")
+            return
     command = ["fairseq-preprocess", "--only-source"]
     if f"{feature}_train.txt" in files:
         command.extend(
