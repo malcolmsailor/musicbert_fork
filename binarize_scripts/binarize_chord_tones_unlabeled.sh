@@ -41,9 +41,12 @@ if [[ -e ${REF_FOLDER}/target_names.json ]]; then
     cp ${REF_FOLDER}/target_names.json ${DATA_BIN}/target_names.json
 fi
 
-for label in "${REF_FOLDER}"/label*; do
+for label in "${REF_FOLDER}"/*; do
+    if [ $(basename "$label") = "input0" ] || ! [ -d "$label" ]; then
+        continue
+    fi
     new_label_dir="${DATA_BIN}/$(basename $label)"
-    mkdir "${new_label_dir}"
+    mkdir -p "${new_label_dir}"
     cp "${label}"/dict.txt "${new_label_dir}"/dict.txt
 done
 set +x

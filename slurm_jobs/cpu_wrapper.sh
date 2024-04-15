@@ -10,6 +10,7 @@ module load StdEnv
 module load miniconda
 conda activate newbert
 
+set -e
 set -x
 
 "${@}"
