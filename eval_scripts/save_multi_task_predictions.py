@@ -114,6 +114,11 @@ def predict_with_conditioning(
     features = self.extract_features(
         tokens.to(device=self.device), z_tokens=z_tokens.to(device=self.device)
     )  # type:ignore
+    backward_compatible_head = head.replace("multitask", "multitarget")
+    
+    if head not in self.model.classification_heads and backward_compatible_head in self.model.classification_heads:
+        head = backward_compatible_head
+
     logits = self.model.classification_heads[head](features)
     if return_logits:
         return logits

@@ -33,28 +33,32 @@ def upgrade_state_dict_named(self, state_dict, name):
             continue
 
         head_name = k[len(prefix + "classification_heads.") :].split(".")[0]
-        multitask_head = head_name == "sequence_multitask_tagging_head"
-        if multitask_head:
-            # This actually a subhead
-            if "multi_tag_sub_heads" in k:
-                # At a certain point I tried renaming _sub_heads while debugging,
-                #   this line is here for compatibility.
-                m = re.search(
-                    r"sequence_multitask_tagging_head\.multi_tag_sub_heads\.\d+",
-                    k[len(prefix + "classification_heads.") :],
-                )
-            else:
-                m = re.search(
-                    r"sequence_multitask_tagging_head\._sub_heads\.\d+",
-                    k[len(prefix + "classification_heads.") :],
-                )
-            if m is None:
-                # (Malcolm 2024-04-02) if we have a parameter like
-                # `'classification_heads.sequence_multitask_tagging_head.loss_sigma'`,
-                # then continue
-                continue
+        # For backwards compatibility with old checkpoints, we need to handle 
+        #   "multitarget" as well as "multitask"
+        for multiname in ("multitask", "multitarget"):
+            multitask_head = head_name == f"sequence_{multiname}_tagging_head"
+            if multitask_head:
+                # This actually a subhead
+                if "multi_tag_sub_heads" in k:
+                    # At a certain point I tried renaming _sub_heads while debugging,
+                    #   this line is here for compatibility.
+                    m = re.search(
+                        rf"sequence_{multiname}_tagging_head\.multi_tag_sub_heads\.\d+",
+                        k[len(prefix + "classification_heads.") :],
+                    )
+                else:
+                    m = re.search(
+                        rf"sequence_{multiname}_tagging_head\._sub_heads\.\d+",
+                        k[len(prefix + "classification_heads.") :],
+                    )
+                if m is None:
+                    # (Malcolm 2024-04-02) if we have a parameter like
+                    # `'classification_heads.sequence_multitask_tagging_head.loss_sigma'`,
+                    # then continue
+                    continue
 
-            head_name = m.group()
+                head_name = m.group()
+                break
 
         # Original fairseq behavior
         num_classes = state_dict[
