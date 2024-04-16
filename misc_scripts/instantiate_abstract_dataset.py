@@ -18,7 +18,7 @@ class Config:
 
 def make_links(feature, output_subfolder, config):
     src_dir = os.path.join(config.input_folder, feature)
-    assert os.path.isdir(src_dir)
+    assert os.path.isdir(src_dir), f"{src_dir} does not exist"
     dst_dir = os.path.join(config.output_folder, output_subfolder)
 
     print(f"Linking {dst_dir} -> {src_dir}")
