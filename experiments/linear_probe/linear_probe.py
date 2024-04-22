@@ -4,7 +4,7 @@
 Local command:
 WANDB_MODE=disabled python experiments/linear_probe/linear_probe.py \
     data_dir=~/output/test_data/labeled_chorales_bin \
-    checkpoint=~/output/musicbert_checkpoints/32702693/checkpoint_best.pt \
+    checkpoint=/Volumes/Zarebski/musicbert_checkpoints/32702693/checkpoint_best.pt \
     ref_dir=~/output/test_data/chord_tones_bin \
     debug=True
 Grace command:
