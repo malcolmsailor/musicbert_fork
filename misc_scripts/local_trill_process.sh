@@ -49,8 +49,8 @@ fi
 MUSIC_DF_FOLDER="/Users/malcolm/google_drive/python/malmus/music_df"
 
 COLLATE_SCRIPT="${MUSIC_DF_FOLDER}/scripts/collate_predictions.py"
-INPUT_BASE_FOLDER=~/output/musicbert_unlabeled/saved_predictions
-OUTPUT_BASE_FOLDER=~/output/musicbert_unlabeled/collated_predictions
+INPUT_BASE_FOLDER=/Volumes/Zarebski/musicbert_unlabeled/saved_predictions
+OUTPUT_BASE_FOLDER=/Volumes/Zarebski/musicbert_unlabeled/collated_predictions
 LABEL_SCRIPT="${MUSIC_DF_FOLDER}/scripts/label_dfs.py"
 
 TRILLS_FOLDER=~/output/trills/labeled_dfs

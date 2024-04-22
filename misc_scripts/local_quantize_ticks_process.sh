@@ -22,10 +22,10 @@ fi
 MUSIC_DF_FOLDER="/Users/malcolm/google_drive/python/malmus/music_df"
 
 COLLATE_SCRIPT="${MUSIC_DF_FOLDER}/scripts/collate_predictions.py"
-LABELED_INPUT_BASE_FOLDER=~/output/musicbert/saved_predictions
-LABELED_OUTPUT_BASE_FOLDER=~/output/musicbert/collated_predictions
-UNLABELED_INPUT_BASE_FOLDER=~/output/musicbert_unlabeled/saved_predictions
-UNLABELED_OUTPUT_BASE_FOLDER=~/output/musicbert_unlabeled/collated_predictions
+LABELED_INPUT_BASE_FOLDER=/Volumes/Zarebski/musicbert/saved_predictions
+LABELED_OUTPUT_BASE_FOLDER=/Volumes/Zarebski/musicbert/collated_predictions
+UNLABELED_INPUT_BASE_FOLDER=/Volumes/Zarebski/musicbert_unlabeled/saved_predictions
+UNLABELED_OUTPUT_BASE_FOLDER=/Volumes/Zarebski/musicbert_unlabeled/collated_predictions
 
 LABEL_SCRIPT="${MUSIC_DF_FOLDER}/scripts/label_dfs.py"
 

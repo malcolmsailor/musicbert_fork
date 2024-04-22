@@ -84,6 +84,7 @@ parser.add_argument(
     "--run-name", type=str, help="required if skip-training, otherwise ignored"
 )
 parser.add_argument("--num-sample-inputs", type=int, default=4)
+parser.add_argument("--classification-head-name", default=None, type=str)
 parser.add_argument(
     "--predict-args",
     type=str,
@@ -137,20 +138,20 @@ if args.conditioning is not None:
     # assume multitask for now
     TASK = "musicbert_conditioned_multitask_sequence_tagging"
     CRITERION = "conditioned_multitask_sequence_tagging"
-    HEAD_NAME = "sequence_multitask_tagging_head"  # TODO: (Malcolm 2024-03-02) update
+    HEAD_NAME = "sequence_multitask_tagging_head" if args.classification_head_name is None else args.classification_head_name
 
 elif args.multitask:
     TASK = "musicbert_multitask_sequence_tagging"
-    HEAD_NAME = "sequence_multitask_tagging_head"
     CRITERION = "multitask_sequence_tagging"
+    HEAD_NAME = "sequence_multitask_tagging_head" if args.classification_head_name is None else args.classification_head_name
 elif args.sequence_level:
     TASK = "sentence_prediction"
-    HEAD_NAME = "sequence_level_head"
     CRITERION = "freezable_sentence_prediction"
+    HEAD_NAME = "sequence_level_head" if args.classification_head_name is None else args.classification_head_name
 else:
     TASK = "musicbert_sequence_tagging"
-    HEAD_NAME = "sequence_tagging_head"
     CRITERION = "sequence_tagging"
+    HEAD_NAME = "sequence_tagging_head" if args.classification_head_name is None else args.classification_head_name
 
 if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-training flag, skipping training")
@@ -412,6 +413,7 @@ else:
                         f"--checkpoint {BEST_CHECKPOINT_PATH}",
                         f"--output-folder {PREDICTIONS_PATH}",
                         f"--task {TASK}",
+                        f"--head {HEAD_NAME}",
                         max_example_str,
                     ]
                 ).split()
