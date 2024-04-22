@@ -5,7 +5,7 @@ from itertools import cycle, repeat
 
 import pandas as pd
 
-BASE_DIR = "/Users/malcolm/output/musicbert_collated_predictions"
+BASE_DIR = "/Volumes/Zarebski/musicbert_collated_predictions"
 
 COLS_TO_DROP = ["balanced_accuracy"]
 

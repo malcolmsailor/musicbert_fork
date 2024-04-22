@@ -2,7 +2,7 @@
 https://github.com/facebookresearch/fairseq/pull/1709/files
 """
 
-from itertools import count
+from itertools import count, zip_longest
 import json
 import logging
 import math
@@ -113,6 +113,74 @@ class RobertaSequenceMultiTaggingHead(nn.Module):
     def forward(self, features, **kwargs):
         x = [sub_head(features) for sub_head in self.multi_tag_sub_heads]
         return x
+
+
+class RobertaSequenceConditionalMultiTaggingHead(RobertaSequenceMultiTaggingHead):
+    def __init__(
+        self,
+        input_dim,
+        inner_dim,
+        num_classes: Sequence[int],
+        activation_fn,
+        pooler_dropout,
+        q_noise=0,
+        qn_block_size=8,
+        do_spectral_norm=False,
+        liebel_loss: bool = False,
+    ):
+        super().__init__(
+            input_dim,
+            inner_dim,
+            num_classes,
+            activation_fn,
+            pooler_dropout,
+            q_noise,
+            qn_block_size,
+            do_spectral_norm,
+            liebel_loss,
+        )
+        projections = []
+        for n_class in num_classes[:-1]:
+            projections.append(nn.Linear(input_dim + n_class, input_dim))
+        self.projections = nn.ModuleList(projections)
+
+    def forward(self, features, **kwargs):
+        out = []
+        for sub_head, proj in zip_longest(
+            self.multi_tag_sub_heads, self.projections, fillvalue=None
+        ):
+            assert sub_head is not None
+            logits = sub_head(features)
+            out.append(logits)
+
+            if proj is not None:
+                features = proj(torch.concat((features, logits), dim=-1))
+
+        return out
+
+
+# class RobertaSequenceNADEMultiTaggingHead(nn.Module):
+#     def __init__(
+#         self,
+#         input_dim,
+#         inner_dim,
+#         num_classes: Sequence[int],
+#         activation_fn,
+#         pooler_dropout,
+#         q_noise=0,
+#         qn_block_size=8,
+#         do_spectral_norm=False,
+#     ):
+#         super().__init__()
+
+#         # unimplemented parameters
+#         assert not q_noise
+#         assert not do_spectral_norm
+
+#         fcs = []
+#         c = TODO
+#         for n_class in num_classes:
+#             fcs.append(nn.Linear(input_dim, n_class))
 
 
 @register_criterion("multitask_sequence_tagging")

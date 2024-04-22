@@ -33,10 +33,12 @@ def upgrade_state_dict_named(self, state_dict, name):
             continue
 
         head_name = k[len(prefix + "classification_heads.") :].split(".")[0]
-        # For backwards compatibility with old checkpoints, we need to handle 
+        # For backwards compatibility with old checkpoints, we need to handle
         #   "multitarget" as well as "multitask"
         for multiname in ("multitask", "multitarget"):
-            multitask_head = head_name == f"sequence_{multiname}_tagging_head"
+            multitask_head = bool(
+                re.match(rf"sequence_{multiname}.*tagging_head$", head_name)
+            )
             if multitask_head:
                 # This actually a subhead
                 if "multi_tag_sub_heads" in k:

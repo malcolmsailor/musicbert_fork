@@ -3,7 +3,7 @@ Example testing command:
 python eval_scripts/save_multi_task_predictions.py --data-dir ~/project/datasets/chord_tones/fairseq/many_target_bin --checkpoint ~/project/new_checkpoints/musicbert_fork/32702693/checkpoint_best.pt --output-folder ~/tmp/mout --msdebug --ignore-specials 4 --overwrite --max-examples 2
 python eval_scripts/save_multi_task_predictions.py \
     --data-dir ~/output/test_data/chord_tones_bin \
-    --checkpoint ~/output/musicbert_checkpoints/32702693/checkpoint_best.pt \
+    --checkpoint /Volumes/Zarebski/musicbert_checkpoints/32702693/checkpoint_best.pt \
     --output-folder ~/tmp/mout --msdebug --ignore-specials 4 \
     --overwrite --max-examples 2
 """

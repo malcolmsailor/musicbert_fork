@@ -7,7 +7,7 @@
 # 2. see synced metrics (gives a fairer comparison with AugmentedNet etc):
 #     1. initialize `music_df` venv in `/Users/malcolm/venvs/music_df`
 #     1. `bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_metrics.sh SLURM_ID test`
-#     2. `bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_synced_metrics.sh ~/output/musicbert_collated_predictions/SLURM_ID/test`
+#     2. `bash /Users/malcolm/google_drive/python/malmus/music_df/user_scripts/musicbert_synced_metrics.sh /Volumes/Zarebski/musicbert_collated_predictions/SLURM_ID/test`
 
 # Check if a SLURM_ID is provided
 if [ "$#" -lt 1 ]; then
@@ -78,8 +78,8 @@ for SLURM_ID in ${SLURM_IDS[@]}; do
     # TODO I should rename "collated_predictions"
     set -x
     bash "${MUSIC_DF_FOLDER}"/user_scripts/musicbert_synced_metrics.sh \
-        ~/output/musicbert_collated_predictions/$SLURM_ID/test \
-        ~/output/musicbert_collated_predictions/$SLURM_ID/test_metrics.csv
+        /Volumes/Zarebski/musicbert_collated_predictions/$SLURM_ID/test \
+        /Volumes/Zarebski/musicbert_collated_predictions/$SLURM_ID/test_metrics.csv
     set +x
 
     # Check if musicbert_synced_metrics was successful
