@@ -133,7 +133,7 @@ else:
     CPUS_ON_NODE = os.cpu_count()
 
 DATA_BIN_DIR = args.data_bin_dir.rstrip(os.path.sep)
-assert DATA_BIN_DIR, f"{DATA_BIN_DIR} does not exist"
+assert os.path.exists(DATA_BIN_DIR), f"{DATA_BIN_DIR} does not exist"
 
 if args.conditioning is not None:
     # assume multitask for now
