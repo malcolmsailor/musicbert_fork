@@ -133,25 +133,42 @@ else:
     CPUS_ON_NODE = os.cpu_count()
 
 DATA_BIN_DIR = args.data_bin_dir.rstrip(os.path.sep)
+assert DATA_BIN_DIR, f"{DATA_BIN_DIR} does not exist"
 
 if args.conditioning is not None:
     # assume multitask for now
     TASK = "musicbert_conditioned_multitask_sequence_tagging"
     CRITERION = "conditioned_multitask_sequence_tagging"
-    HEAD_NAME = "sequence_multitask_tagging_head" if args.classification_head_name is None else args.classification_head_name
+    HEAD_NAME = (
+        "sequence_multitask_tagging_head"
+        if args.classification_head_name is None
+        else args.classification_head_name
+    )
 
 elif args.multitask:
     TASK = "musicbert_multitask_sequence_tagging"
     CRITERION = "multitask_sequence_tagging"
-    HEAD_NAME = "sequence_multitask_tagging_head" if args.classification_head_name is None else args.classification_head_name
+    HEAD_NAME = (
+        "sequence_multitask_tagging_head"
+        if args.classification_head_name is None
+        else args.classification_head_name
+    )
 elif args.sequence_level:
     TASK = "sentence_prediction"
     CRITERION = "freezable_sentence_prediction"
-    HEAD_NAME = "sequence_level_head" if args.classification_head_name is None else args.classification_head_name
+    HEAD_NAME = (
+        "sequence_level_head"
+        if args.classification_head_name is None
+        else args.classification_head_name
+    )
 else:
     TASK = "musicbert_sequence_tagging"
     CRITERION = "sequence_tagging"
-    HEAD_NAME = "sequence_tagging_head" if args.classification_head_name is None else args.classification_head_name
+    HEAD_NAME = (
+        "sequence_tagging_head"
+        if args.classification_head_name is None
+        else args.classification_head_name
+    )
 
 if args.skip_training and args.skip_test_metrics:
     LOGGER.info("found --skip-training flag, skipping training")
@@ -198,6 +215,7 @@ else:
                         )
                     )
                 )
+        assert num_classes, "Error getting num_classes"
         NUM_CLASSES = " ".join(num_classes)
     else:
         label_dict_file = os.path.join(DATA_BIN_DIR, "label", "dict.txt")
