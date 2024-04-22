@@ -4,6 +4,7 @@ import sys
 from dataclasses import dataclass
 from typing import List, Optional
 from omegaconf import OmegaConf
+from zipfile import ZipFile
 
 
 @dataclass
@@ -18,7 +19,7 @@ class Config:
 
 def make_links(feature, output_subfolder, config):
     src_dir = os.path.join(config.input_folder, feature)
-    assert os.path.isdir(src_dir), f"{src_dir} does not exist"
+    assert os.path.isdir(src_dir)
     dst_dir = os.path.join(config.output_folder, output_subfolder)
 
     print(f"Linking {dst_dir} -> {src_dir}")
@@ -28,15 +29,34 @@ def make_links(feature, output_subfolder, config):
 def make_metadata_links(config):
     assert config.input_folder.rstrip(os.path.sep).endswith("_bin")
     raw_data_dir = config.input_folder.rstrip(os.path.sep)[:-4] + "_raw"
-    assert os.path.exists(raw_data_dir)
+    zipped_data = False
+    try:
+        assert os.path.exists(raw_data_dir)
+    except AssertionError:
+        zip_data = raw_data_dir + ".zip"
+        assert os.path.exists(zip_data), f"neither {raw_data_dir} or {zip_data} exists"
+        zipped_data = True
 
-    for split in ("train", "valid", "test"):
-        metadata_basename = f"metadata_{split}.txt"
-        src = os.path.join(raw_data_dir, metadata_basename)
-        if os.path.exists(src):
-            dst = os.path.join(config.output_folder, metadata_basename)
-            print(f"Linking {src} -> {dst}")
-            os.symlink(src, dst)
+    if not zipped_data:
+        for split in ("train", "valid", "test"):
+            metadata_basename = f"metadata_{split}.txt"
+            src = os.path.join(raw_data_dir, metadata_basename)
+            if os.path.exists(src):
+                dst = os.path.join(config.output_folder, metadata_basename)
+                print(f"Linking {src} -> {dst}")
+                os.symlink(src, dst)
+
+    else:
+        zip_file = ZipFile(zip_data)
+        for split in ("train", "valid", "test"):
+            metadata_basename = f"metadata_{split}.txt"
+            src = os.path.join(os.path.basename(raw_data_dir), metadata_basename)
+            if src in zip_file.namelist():
+                with zip_file.open(src) as src_file:
+                    dst = os.path.join(config.output_folder, metadata_basename)
+                    with open(dst, "wb") as dst_file:
+                        dst_file.write(src_file.read())
+                    print(f"Copied {zip_file}::{src} -> {dst}")
 
 
 def make_external_conditioning_links(config: Config):
