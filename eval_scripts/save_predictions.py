@@ -46,6 +46,7 @@ def parse_args():
         "for a file called 'target_names.json'",
         default=None,
     )
+    parser.add_argument("--head", default="sequence_tagging_head", type=str)
     # Parse once just to check for a specific unknown arg
     _, unknown = parser.parse_known_args()
     for arg in unknown:
@@ -144,7 +145,7 @@ def main():
 
             # logits: batch x seq x vocab
             logits = musicbert.predict(  # type:ignore
-                head="sequence_tagging_head", tokens=src_tokens, return_logits=True
+                head=args.head, tokens=src_tokens, return_logits=True
             )
 
             # Enumerate over batch dimension
