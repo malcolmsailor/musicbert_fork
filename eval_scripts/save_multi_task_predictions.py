@@ -23,6 +23,7 @@ import torch.nn.functional as F
 from fairseq.data.dictionary import Dictionary
 from fairseq.models.roberta import RobertaModel
 from fairseq.models.roberta.hub_interface import RobertaHubInterface
+from zipfile import ZipFile
 
 SCRIPT_DIR = os.path.dirname((os.path.realpath(__file__)))
 PARENT_DIR = os.path.join(SCRIPT_DIR, "..")
@@ -266,10 +267,28 @@ def main():
 
     metadata_basename = f"metadata_{args.dataset}.txt"
     metadata_path = os.path.join(data_dir, metadata_basename)
+    zipped_data = False
     if not os.path.exists(metadata_path):
         raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
-        assert os.path.exists(raw_data_dir)
-        metadata_path = os.path.join(raw_data_dir, metadata_basename)
+        try:
+            assert os.path.exists(raw_data_dir)
+        except AssertionError:
+            zip_data = raw_data_dir + ".zip"
+            assert os.path.exists(zip_data), f"neither {raw_data_dir} or {zip_data} exists"
+            zipped_data = True
+        
+        if not zipped_data:
+            metadata_path = os.path.join(raw_data_dir, metadata_basename)
+        else:
+            zip_file = ZipFile(zip_data)
+            zip_path = os.path.join(os.path.basename(raw_data_dir), metadata_basename)
+            assert zip_path in zip_file.namelist(), f"{zip_path} not in {zip_data}"
+            with zip_file.open(zip_path) as src_file:
+                dst =  os.path.join(output_folder, metadata_basename)
+                with open(dst, "wb") as dst_file:
+                    dst_file.write(src_file.read())
+                print(f"Copied {zip_data}::{zip_path} -> {dst}")
+
 
     shutil.copy(metadata_path, os.path.join(output_folder, metadata_basename))
 

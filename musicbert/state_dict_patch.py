@@ -45,12 +45,14 @@ def upgrade_state_dict_named(self, state_dict, name):
                     # At a certain point I tried renaming _sub_heads while debugging,
                     #   this line is here for compatibility.
                     m = re.search(
-                        rf"sequence_{multiname}_tagging_head\.multi_tag_sub_heads\.\d+",
+                        rf"sequence_{multiname}(_conditional)?_tagging_head\.multi_tag_sub_heads(\.projections)?\.\d+",
                         k[len(prefix + "classification_heads.") :],
                     )
                 else:
+                    # This patch is getting increasingly hacky with all the added on
+                    #   chunks like (_conditional) and (.projections)
                     m = re.search(
-                        rf"sequence_{multiname}_tagging_head\._sub_heads\.\d+",
+                        rf"sequence_{multiname}(_conditional)?_tagging_head\.(_sub_heads|projections)\.\d+",
                         k[len(prefix + "classification_heads.") :],
                     )
                 if m is None:
@@ -61,6 +63,13 @@ def upgrade_state_dict_named(self, state_dict, name):
 
                 head_name = m.group()
                 break
+
+        if "projections" in head_name:
+            # hacky solution to fact that "projections" layers in 
+            #   RobertaSequenceConditionalMultiTaggingHead pass the conditions above
+            #   but are internal to the multitagginghead and so don't affect
+            #   num_classes etc. below
+            continue
 
         # Original fairseq behavior
         num_classes = state_dict[
