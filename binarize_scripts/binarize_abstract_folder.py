@@ -7,7 +7,7 @@ import subprocess
 import glob
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from omegaconf import OmegaConf
 
 
@@ -17,6 +17,11 @@ class Config:
     workers: int = 24
     inputs_name: str = "midi"
     overwrite: bool = False
+    truncate_vocab: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        for key, val in self.truncate_vocab.items():
+            assert isinstance(val, int)
 
 
 conf = OmegaConf.from_cli(sys.argv[1:])
@@ -57,7 +62,7 @@ for f in files:
 assert inputs
 
 
-def do_feature(feature, files, output_subfolder, src_dict=None):
+def do_feature(feature, files, output_subfolder, src_dict=None, truncate_vocab=None):
     destdir = os.path.join(output_folder, output_subfolder)
     if os.path.exists(destdir):
         if config.overwrite:
@@ -87,8 +92,12 @@ def do_feature(feature, files, output_subfolder, src_dict=None):
         ]
     )
 
+    assert not src_dict and truncate_vocab
+
     if src_dict:
         command.extend(["--srcdict", src_dict])
+    elif truncate_vocab:
+        command.extend(["--nwordssrc", truncate_vocab])
 
     print("+ " + " ".join(command))
     subprocess.run(command, check=True)
@@ -97,4 +106,4 @@ def do_feature(feature, files, output_subfolder, src_dict=None):
 do_feature("midi", inputs, "input0", srcdict_path)
 
 for key, files in keyed_features.items():
-    do_feature(key, files, key)
+    do_feature(key, files, key, truncate_vocab=config.truncate_vocab.get(key))
