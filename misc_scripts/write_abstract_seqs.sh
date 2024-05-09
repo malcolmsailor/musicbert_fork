@@ -16,6 +16,8 @@ if [[ -z "$4" ]]; then
     exit 1
 fi
 
+shift 4
+
 set -e
 
 if [[ -d "${RAW_OUTPUT_DIR/_raw/_bin}" ]]; then
@@ -41,6 +43,6 @@ conda activate newbert
 
 set -x
 python ~/code/musicbert_fork/binarize_scripts/binarize_abstract_folder.py \
-    input_folder=${RAW_OUTPUT_DIR} workers=16
+    input_folder=${RAW_OUTPUT_DIR} workers=16 "${@}"
 
 set +x
