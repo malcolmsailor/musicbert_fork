@@ -92,7 +92,7 @@ def do_feature(feature, files, output_subfolder, src_dict=None, truncate_vocab=N
         ]
     )
 
-    assert not src_dict and truncate_vocab
+    assert not (src_dict and truncate_vocab)
 
     if src_dict:
         command.extend(["--srcdict", src_dict])
