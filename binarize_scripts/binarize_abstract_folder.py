@@ -23,7 +23,7 @@ class Config:
         for key, val in self.truncate_vocab.items():
             assert isinstance(val, int)
             # So that " ".join(command) will not fail, we need to cast to string
-            self.truncate_vocab[key] = str(int)
+            self.truncate_vocab[key] = str(val)
 
 
 conf = OmegaConf.from_cli(sys.argv[1:])
