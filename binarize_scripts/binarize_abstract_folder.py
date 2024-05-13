@@ -100,6 +100,11 @@ def do_feature(feature, files, output_subfolder, src_dict=None, truncate_vocab=N
         command.extend(["--srcdict", src_dict])
     elif truncate_vocab:
         command.extend(["--nwordssrc", truncate_vocab])
+    else:
+        # Check if there is an existing dict for this feature
+        src_dict_path = os.path.join(config.input_folder, f"dict.{feature}.txt")
+        if os.path.exists(src_dict_path):
+            command.extend(["--srcdict", src_dict_path])
 
     print("+ " + " ".join(command))
     subprocess.run(command, check=True)

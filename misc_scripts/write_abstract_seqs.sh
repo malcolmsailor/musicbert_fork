@@ -36,7 +36,8 @@ python -m write_seqs \
 
 python ~/code/write_seqs/scripts/to_fair_seq_abstract.py \
     --input-dir ${INTERMEDIATE_DIR} \
-    --output-dir ${RAW_OUTPUT_DIR}
+    --output-dir ${RAW_OUTPUT_DIR} \
+    --explicit-target-dicts ~/code/write_seqs/scripts/target_dictionaries/dict.*.txt
 set +x
 
 conda activate newbert
