@@ -15,6 +15,11 @@ class Config:
     conditioning: Optional[str] = None
     external_conditioning: Optional[str] = None
     inputs_name: str = "input0"
+    # --conditioning is only implemented for --multitask, which expects
+    #   the labels in numbered directories `label0/`, `label1/`, etc.
+    #   If we want to condition a single task, then we can do
+    #   `force_multitask=True``
+    force_multitask: bool = False
 
 
 def make_links(feature, output_subfolder, config):
@@ -81,7 +86,7 @@ def main():
 
     make_links(config.inputs_name, "input0", config)
 
-    if len(config.feature_names) == 1:
+    if (not config.force_multitask) and (len(config.feature_names) == 1):
         make_links(config.feature_names[0], "label", config)
     else:
         for i, feature in enumerate(config.feature_names):
