@@ -680,9 +680,9 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
 
     @classmethod
     def _setup_task_helper(cls, args, **kwargs):
-        assert isinstance(args.num_classes, list) and all(
-            x > 0 for x in args.num_classes
-        )
+        if not isinstance(args.num_classes, list):
+            args.num_classes = [args.num_classes]
+        assert all(x > 0 for x in args.num_classes)
 
         # load data dictionary
         data_dict = cls.load_dictionary(
