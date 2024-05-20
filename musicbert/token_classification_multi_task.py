@@ -201,6 +201,23 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
                 self.example_network_inputs_path is not None
             ), "must provide --example-network-inputs-path if --example-network-inputs-to-save > 0"
 
+        if self.task.args.ignore_tokens_config:
+            with open(self.task.args.ignore_tokens_config) as inf:
+                try:
+                    config_dict = json.load(inf)
+                    assert isinstance(config_dict, dict)
+                except:
+                    (
+                        f"Expecting {self.task.args.ignore_tokens_config} to be path to "
+                        "a json formatted dictionary"
+                    )
+                for key in config_dict:
+                    i = task.target_names.index(key)
+                    self.register_buffer(
+                        f"ignore_tokens_{i}",
+                        torch.tensor(config_dict[key], dtype=torch.long),
+                    )
+
     @staticmethod
     def add_args(parser):
         # fmt: off
@@ -280,6 +297,13 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
         masked_targets_list = []
         for i, logits in enumerate(multi_logits):
             targets = sample[f"target{i}"].view(-1)
+            ignore_tokens = getattr(self, f"ignore_tokens_{i}", None)
+
+            if ignore_tokens:
+                targets = torch.where(
+                    targets.isin(ignore_tokens), self.pad_idx, targets
+                )
+
             logits = logits.view(-1, logits.size(-1))
             this_loss = F.nll_loss(
                 F.log_softmax(logits, dim=-1, dtype=torch.float32),
@@ -538,37 +562,6 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
         return True
 
 
-# # class MusicBERTSequenceTaggingModel(RobertaModel):
-# #     def register_sequence_tagging_head(
-# #         self, name, num_classes=None, inner_dim=None, **kwargs
-# #     ):
-# #         """Register a classification head."""
-# #         if name in self.classification_heads:
-# #             prev_num_classes = self.classification_heads[  # type:ignore
-# #                 name
-# #             ].out_proj.out_features  # type:ignore
-# #             prev_inner_dim = self.classification_heads[  # type:ignore
-# #                 name
-# #             ].dense.out_features  # type:ignore
-# #             if num_classes != prev_num_classes or inner_dim != prev_inner_dim:
-# #                 LOGGER.warning(
-# #                     're-registering head "{}" with num_classes {} (prev: {}) '
-# #                     "and inner_dim {} (prev: {})".format(
-# #                         name, num_classes, prev_num_classes, inner_dim, prev_inner_dim
-# #                     )
-# #                 )
-# #         self.classification_heads[name] = RobertaSequenceTaggingHead(  # type:ignore
-# #             input_dim=self.args.encoder_embed_dim,  # type:ignore
-# #             inner_dim=inner_dim or self.args.encoder_embed_dim,  # type:ignore
-# #             num_classes=num_classes,
-# #             activation_fn=self.args.pooler_activation_fn,  # type:ignore
-# #             pooler_dropout=self.args.pooler_dropout,  # type:ignore
-# #             q_noise=self.args.quant_noise_pq,  # type:ignore
-# #             qn_block_size=self.args.quant_noise_pq_block_size,  # type:ignore
-# #             do_spectral_norm=self.args.spectral_norm_classification_head,  # type:ignore
-# #         )
-
-
 @register_task("musicbert_multitask_sequence_tagging")
 class MultiTaskSequenceTaggingTask(FairseqTask):
     """
@@ -594,6 +587,15 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
         )
         parser.add_argument("--ref-dir", default=None)
         parser.add_argument("--target-names", nargs="+", default=None)
+        parser.add_argument(
+            "--ignore-tokens-config",
+            default=None,
+            help="""For certain purposes, we may wish to ignore certain tokens for
+                 certain tasks. (E.g., scale degree alteration, if we only predict for
+                 notes that don't belong to the predicted scale.) For that purpose, we
+                 can provide the path to a json file with format `"task name": [ignored
+                 indices]`.""",
+        )
         parser.add_argument("--msdebug", action="store_true")
         parser.add_argument("--freeze-layers", type=int, default=-1)
         parser.add_argument(
