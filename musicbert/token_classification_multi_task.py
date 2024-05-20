@@ -70,6 +70,11 @@ class AssertSameLengthDataset(FairseqDataset):
         return 0
 
 
+class NumelDatasetWithIgnore(NumelDataset):
+    def __init__(self, dataset, ignore_indices, reduce=False):
+        super().__init__(dataset, reduce)
+
+
 class RobertaSequenceMultiTaggingHead(nn.Module):
     """Head for sequence tagging/token-level classification tasks."""
 
@@ -305,9 +310,10 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
             ignore_tokens = getattr(self, f"ignore_tokens_{i}", None)
 
             if ignore_tokens is not None:
-                targets = torch.where(
-                    torch.isin(targets, ignore_tokens), self.pad_idx, targets
-                )
+                ignore_mask = torch.isin(targets, ignore_tokens)
+                targets = torch.where(ignore_mask, self.pad_idx, targets)
+                # We also need to adjust "sample size" for this target
+                this_sample_size = sample_size - ignore_mask.sum()
 
             logits = logits.view(-1, logits.size(-1))
             this_loss = F.nll_loss(
@@ -336,6 +342,7 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
             logging_output[f"ncorrect_{i}"] = (
                 these_masked_preds == these_masked_targets
             ).sum()
+            logging_output[f"sample_size_{i}"] = this_sample_size
 
         masked_preds = np.concatenate(masked_preds_list)
         masked_targets = np.concatenate(masked_targets_list)
@@ -408,9 +415,8 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
             sum(log.get("sample_size", 0) for log in logging_outputs)
         )
 
-        # TODO: (Malcolm 2023-09-11) A few things I don't understand here:
-        #   1. why divide loss by log of 2?
-        #   2. why is "loss" divided by sample_size and "nll_loss"  is divided by
+        # TODO: (Malcolm 2023-09-11)
+        #   why is "loss" divided by sample_size and "nll_loss"  is divided by
         #       ntokens?
         #           Note that ntokens should be the number of tokens including <eos>
         #               and sample_size should be the number of tokens excluding <eos>
@@ -474,13 +480,20 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
             ):
                 continue
             target_name = TARGET_INFO[f"target{target_i}_name"]
+            this_sample_size = utils.item(
+                # In the case where the sample size is reduced by ignoring tokens
+                sum(
+                    log.get(f"sample_size_{target_i}", log.get("sample_size", 0))
+                    for log in logging_outputs
+                )
+            )
 
             ncorrect = sum(
                 log.get(f"ncorrect_{target_i}", 0) for log in logging_outputs
             )
             metrics.log_scalar(
                 f"accuracy_{target_name}",
-                100.0 * ncorrect / sample_size,
+                100.0 * ncorrect / this_sample_size,
                 nsentences,
                 round=1,
             )
