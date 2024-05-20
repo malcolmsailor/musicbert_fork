@@ -217,6 +217,11 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
                         f"ignore_tokens_{i}",
                         torch.tensor(config_dict[key], dtype=torch.long),
                     )
+                    for token_i in config_dict[key]:
+                        LOGGER.info(
+                            f"Ignoring target {i}: {key} token {token_i}: "
+                            f"{task.label_dictionaries[i][token_i]}"
+                        )
 
     @staticmethod
     def add_args(parser):
