@@ -304,7 +304,7 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
             targets = sample[f"target{i}"].view(-1)
             ignore_tokens = getattr(self, f"ignore_tokens_{i}", None)
 
-            if ignore_tokens:
+            if ignore_tokens is not None:
                 targets = torch.where(
                     targets.isin(ignore_tokens), self.pad_idx, targets
                 )
