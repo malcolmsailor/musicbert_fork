@@ -306,7 +306,7 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
 
             if ignore_tokens is not None:
                 targets = torch.where(
-                    targets.isin(ignore_tokens), self.pad_idx, targets
+                    torch.isin(targets, ignore_tokens), self.pad_idx, targets
                 )
 
             logits = logits.view(-1, logits.size(-1))
