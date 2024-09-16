@@ -11,7 +11,7 @@ INTERMEDIATE_DIR=$2 # E.g., ~/project/raw_data/abstract_seqs
 RAW_OUTPUT_DIR=$3   # E.g., ~/project/datasets/chord_tones/fairseq/abstract_raw
 INPUTS_PATHS=$4
 if [[ -z "$4" ]]; then
-    echo Error: 2 positional arguments required.
+    echo Error: 4 positional arguments required.
     echo Usage: bash write_abstract_seqs.sh [input_dir] [intermediate_dir] [output_dir] [input_splits_paths]
     exit 1
 fi

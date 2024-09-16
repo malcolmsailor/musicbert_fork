@@ -2,13 +2,13 @@
 https://github.com/facebookresearch/fairseq/pull/1709/files
 """
 
-from itertools import count, zip_longest
 import json
 import logging
 import math
 import os
 import pickle
 import warnings
+from itertools import count, zip_longest
 from typing import Literal, Sequence
 
 import numpy as np
@@ -314,6 +314,8 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
                 targets = torch.where(ignore_mask, self.pad_idx, targets)
                 # We also need to adjust "sample size" for this target
                 this_sample_size = sample_size - ignore_mask.sum()
+            else:
+                this_sample_size = sample_size
 
             logits = logits.view(-1, logits.size(-1))
             this_loss = F.nll_loss(
@@ -464,7 +466,10 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
                     f1,
                     support,
                 ) = sklearn.metrics.precision_recall_fscore_support(
-                    y_true, y_pred, average=average, zero_division=0.0  # type:ignore
+                    y_true,
+                    y_pred,
+                    average=average,
+                    zero_division=0.0,  # type:ignore
                 )
                 metrics.log_scalar(f"precision_{average}", precision)  # type:ignore
                 metrics.log_scalar(f"recall_{average}", recall)  # type:ignore
@@ -520,13 +525,18 @@ class MultiTaskSequenceTaggingCriterion(FairseqCriterion):
                     f1,
                     support,
                 ) = sklearn.metrics.precision_recall_fscore_support(
-                    y_true, y_pred, average=average, zero_division=0.0  # type:ignore
+                    y_true,
+                    y_pred,
+                    average=average,
+                    zero_division=0.0,  # type:ignore
                 )
                 metrics.log_scalar(
-                    f"precision_{target_name}_{average}", precision  # type:ignore
+                    f"precision_{target_name}_{average}",
+                    precision,  # type:ignore
                 )
                 metrics.log_scalar(
-                    f"recall_{target_name}_{average}", recall  # type:ignore
+                    f"recall_{target_name}_{average}",
+                    recall,  # type:ignore
                 )
                 metrics.log_scalar(f"f1_{target_name}_{average}", f1)  # type:ignore
             balanced_accuracy = sklearn.metrics.balanced_accuracy_score(y_true, y_pred)

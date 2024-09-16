@@ -17,7 +17,8 @@ DATA_BIN=${DATA_RAW%_raw}_bin
 
 WORKERS=$2
 if [[ -z "${WORKERS}" ]]; then
-    WORKERS=24
+    echo "Second argument (num workers) is required"
+    exit 1
 fi
 
 if [[ $WORKERS -le 0 ]]; then
@@ -26,6 +27,45 @@ if [[ $WORKERS -le 0 ]]; then
 fi
 
 echo Number of workers: ${WORKERS}
+
+# Set vocabulary thresholds if provided
+
+# Check if the number of remaining arguments is odd
+if (($# % 2 != 0)); then
+    echo "Error: Odd number of arguments. We require an even number of arguments."
+    echo "    Set vocabulary thresholds as 'idx threshold' pairs"
+    exit 1
+fi
+
+# Declare an associative array
+declare -A thresholds
+
+# Skip the first two arguments ($1 and $2) and start from $3
+idx=3
+
+# Loop over the remaining arguments, pairing them as key/value
+while [[ $idx -le $# ]]; do
+    key=${!idx}             # Get the key
+    next_index=$((idx + 1)) # Calculate the next index
+    value=${!next_index}    # Get the value using the next index
+    thresholds[$key]=$value # Store in the associative array
+
+    idx=$((idx + 2)) # Move to the next key/value pair
+done
+
+target_i=0
+((target_i++))
+
+if [[ -v thresholds[$target_i] ]]; then
+    echo "$target_i: ${thresholds[$target_i]}"
+fi
+
+exit
+
+# # Print the contents of the associative array (for verification)
+# for key in "${!thresholds[@]}"; do
+#     echo "$key: ${thresholds[$key]}"
+# done
 
 command="fairseq-preprocess --only-source"
 # Check if the training file exists
@@ -88,6 +128,18 @@ else
             break
         fi
         command="fairseq-preprocess --only-source"
+
+        # Apply threshold if provided
+        if [[ -v thresholds[$target_i] ]]; then
+            # fairseq-preprocess has two arguments, --thresholdsrc and --thresholdtgt
+            #   I'm not completely sure whether it thinks we're processing source or
+            #   target here (of course, in actuality we are processing target, but
+            #   not sure if fairseq-preprocess knows that). Perhaps easiest to
+            #   just set both.
+            command+=" --thresholdtgt ${thresholds[$target_i]}"
+            command+=" --thresholdsrc ${thresholds[$target_i]}"
+        fi
+
         # Check if the training file exists
         if [ -f "${DATA_RAW}/targets_${target_i}_train.txt" ]; then
             command+=" --trainpref ${DATA_RAW}/targets_${target_i}_train.txt"

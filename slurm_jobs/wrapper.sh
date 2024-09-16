@@ -14,6 +14,7 @@ conda activate newbert
 
 set -e
 set -x
+set -u # Abort if any variable is undefined
 
 "${@}"
 
