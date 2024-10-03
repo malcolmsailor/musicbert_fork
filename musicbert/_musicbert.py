@@ -41,8 +41,8 @@ from fairseq.tasks.sentence_prediction import SentencePredictionTask
 from musicbert.freezable_roberta import FreezableRobertaEncoder
 from musicbert.token_classification import RobertaSequenceTaggingHead
 from musicbert.token_classification_multi_task import (
-    RobertaSequenceMultiTaggingHead,
     RobertaSequenceConditionalMultiTaggingHead,
+    RobertaSequenceMultiTaggingHead,
 )
 
 warnings.filterwarnings("ignore", message=".*NVIDIA's apex library.*")
@@ -95,7 +95,8 @@ class MusicBERTSentencePredictionMultilabelTask(SentencePredictionTask):
                 line = line.strip()
                 line = line.split()
                 label = [
-                    self.label_dictionary.index(item) for item in line  # type:ignore
+                    self.label_dictionary.index(item)
+                    for item in line  # type:ignore
                 ]
 
                 if len(label) < self.args.num_classes:  # type:ignore
@@ -510,7 +511,7 @@ class MusicBERTModel(RobertaModel):
         elif name == "sequence_multitask_conditional_tagging_head":
             head_cls = RobertaSequenceConditionalMultiTaggingHead
         else:
-            raise ValueError
+            raise ValueError(f"Trying to register unknown head with name '{name}'")
 
         self.classification_heads[  # type:ignore
             name

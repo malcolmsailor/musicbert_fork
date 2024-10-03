@@ -1,13 +1,13 @@
-from collections import defaultdict
-from itertools import chain
+import glob
 import os
 import re
 import shutil
 import subprocess
-import glob
-
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, field
+from itertools import chain
+
 from omegaconf import OmegaConf
 
 
@@ -99,7 +99,10 @@ def do_feature(feature, files, output_subfolder, src_dict=None, truncate_vocab=N
     if src_dict:
         command.extend(["--srcdict", src_dict])
     elif truncate_vocab:
-        command.extend(["--nwordssrc", truncate_vocab])
+        # --nwordssrc is inclusive of the 4 special tokens,
+        #   so to truncate the "real" vocabulary at `truncate_vocab`
+        #   tokens, we need to add 4
+        command.extend(["--nwordssrc", truncate_vocab + 4])
     else:
         # Check if there is an existing dict for this feature
         src_dict_path = os.path.join(config.input_folder, f"dict.{feature}.txt")
