@@ -506,6 +506,10 @@ class MusicBERTModel(RobertaModel):
                     )
                 )
 
+        # For backward-compatibility with old code, rename "multitarget"
+        #   to "multitask"
+        name = name.replace("multitarget", "multitask")
+
         if name == "sequence_multitask_tagging_head":
             head_cls = RobertaSequenceMultiTaggingHead
         elif name == "sequence_multitask_conditional_tagging_head":
