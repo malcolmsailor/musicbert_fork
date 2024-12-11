@@ -211,7 +211,7 @@ def main():
                     dst_file.write(src_file.read())
                 print(f"Copied {zip_data}::{zip_path} -> {dst}")
 
-    shutil.copy(metadata_path, os.path.join(output_folder, metadata_basename))
+    # shutil.copy(metadata_path, os.path.join(output_folder, metadata_basename))
 
 
 if __name__ == "__main__":
