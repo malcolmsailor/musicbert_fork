@@ -192,6 +192,7 @@ def main():
             raw_data_dir = args.raw_dir
             if raw_data_dir.endswith(".zip"):
                 zipped_data = True
+                zip_data = raw_data_dir
             assert os.path.exists(
                 raw_data_dir
             ), f"raw_data_dir {raw_data_dir} does not exist"
