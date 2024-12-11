@@ -4,11 +4,11 @@ import logging
 import os
 import shutil
 import sys
+from zipfile import ZipFile
 
 import h5py
 import torch
 from fairseq.models.roberta import RobertaModel
-from zipfile import ZipFile
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -31,6 +31,10 @@ LOG_INTERVAL = 50
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", required=True)
+    parser.add_argument(
+        "--raw-dir",
+        help="Required if _raw doesn't exist, in which case this can point to the abstract_raw directory. The only files we need are the metadata files like metadata_test.txt",
+    )
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--dataset", default="test", choices=("test", "valid", "train"))
     parser.add_argument("--batch-size", type=int, default=4)
@@ -53,7 +57,7 @@ def parse_args():
     for arg in unknown:
         if arg.startswith("--ref-dir"):
             raise ValueError(
-                f"Use --target-names and --label-dictionary-path instead of --ref-dir"
+                "Use --target-names and --label-dictionary-path instead of --ref-dir"
             )
     # Parse again so we get argparse's usual behavior on other unknown args
     args = parser.parse_args()
@@ -174,15 +178,23 @@ def main():
     metadata_path = os.path.join(data_dir, metadata_basename)
     zipped_data = False
     if not os.path.exists(metadata_path):
-        raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
-        try:
-            assert os.path.exists(raw_data_dir)
-        except AssertionError:
-            zip_data = raw_data_dir + ".zip"
+        if args.raw_dir is None:
+            raw_data_dir = data_dir.rstrip(os.path.sep)[:-4] + "_raw"
+            try:
+                assert os.path.exists(raw_data_dir)
+            except AssertionError:
+                zip_data = raw_data_dir + ".zip"
+                assert os.path.exists(
+                    zip_data
+                ), f"neither {raw_data_dir} or {zip_data} exists"
+                zipped_data = True
+        else:
+            raw_data_dir = args.raw_dir
+            if raw_data_dir.endswith(".zip"):
+                zipped_data = True
             assert os.path.exists(
-                zip_data
-            ), f"neither {raw_data_dir} or {zip_data} exists"
-            zipped_data = True
+                raw_data_dir, f"raw_data_dir {raw_data_dir} does not exist"
+            )
 
         if not zipped_data:
             metadata_path = os.path.join(raw_data_dir, metadata_basename)
