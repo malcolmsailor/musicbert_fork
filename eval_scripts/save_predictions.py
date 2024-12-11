@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument("--data-dir", required=True)
     parser.add_argument(
         "--raw-dir",
-        help="Required if _raw doesn't exist, in which case this can point to the abstract_raw directory. The only files we need are the metadata files like metadata_test.txt",
+        help="Required if {data_dir%bin}_raw doesn't exist, in which case this can point to the abstract_raw directory. The only files we need are the metadata files like metadata_test.txt",
     )
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--dataset", default="test", choices=("test", "valid", "train"))
@@ -193,8 +193,8 @@ def main():
             if raw_data_dir.endswith(".zip"):
                 zipped_data = True
             assert os.path.exists(
-                raw_data_dir, f"raw_data_dir {raw_data_dir} does not exist"
-            )
+                raw_data_dir
+            ), f"raw_data_dir {raw_data_dir} does not exist"
 
         if not zipped_data:
             metadata_path = os.path.join(raw_data_dir, metadata_basename)
