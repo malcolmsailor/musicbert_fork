@@ -193,6 +193,8 @@ def main():
             if raw_data_dir.endswith(".zip"):
                 zipped_data = True
                 zip_data = raw_data_dir
+                # Remove .zip extension
+                raw_data_dir = raw_data_dir[:-4]
             assert os.path.exists(
                 raw_data_dir
             ), f"raw_data_dir {raw_data_dir} does not exist"
