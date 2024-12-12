@@ -676,7 +676,9 @@ class MultiTaskSequenceTaggingTask(FairseqTask):
         else:
             self.target_names = args.target_names
 
-        assert self.num_targets == len(self.target_names)
+        assert self.num_targets == len(
+            self.target_names
+        ), f"{self.num_targets=} != {len(self.target_names)=}"
 
         # Put necessary contents into TARGET_INFO
         n_specials_set = {d.nspecial for d in self._label_dictionaries}
