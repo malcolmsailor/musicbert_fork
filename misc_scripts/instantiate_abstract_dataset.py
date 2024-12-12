@@ -3,8 +3,9 @@ import os
 import sys
 from dataclasses import dataclass
 from typing import List, Optional
-from omegaconf import OmegaConf
 from zipfile import ZipFile
+
+from omegaconf import OmegaConf
 
 
 @dataclass
@@ -24,7 +25,9 @@ class Config:
 
 def make_links(feature, output_subfolder, config):
     src_dir = os.path.join(config.input_folder, feature)
-    assert os.path.isdir(src_dir)
+    assert os.path.isdir(
+        src_dir
+    ), f"src_dir {src_dir} does not exist or is not a directory"
     dst_dir = os.path.join(config.output_folder, output_subfolder)
 
     print(f"Linking {dst_dir} -> {src_dir}")
