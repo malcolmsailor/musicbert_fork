@@ -1,12 +1,14 @@
+import os
+import pdb
 import re
 import sys
+import traceback
 from dataclasses import dataclass
-from typing import Optional
-from omegaconf import OmegaConf
-from fairseq.models.roberta import RobertaModel
-import os
-import torch
+
 import lovely_tensors
+import torch
+from fairseq.models.roberta import RobertaModel
+from omegaconf import OmegaConf
 
 lovely_tensors.monkey_patch()
 
@@ -15,11 +17,9 @@ USER_DIR = os.path.join(SCRIPT_DIR, "..", "musicbert")
 PARENT_DIR = os.path.join(SCRIPT_DIR, "..")
 sys.path.append(PARENT_DIR)
 
-import traceback, pdb, sys
-
 
 def custom_excepthook(exc_type, exc_value, exc_traceback):
-    if exc_type != KeyboardInterrupt:
+    if exc_type is not KeyboardInterrupt:
         traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
         pdb.post_mortem(exc_traceback)
 
@@ -32,7 +32,7 @@ class Config:
     # output_dir: str
     output_path: str
     checkpoint: str = os.path.expanduser(
-        "~/output/test_checkpoints/many_target_musicbert_small.pt"
+        "~/output/test_checkpoints/multitask_musicbert_small.pt"
     )
     data_dir: str = os.path.expanduser(
         "~/output/test_data/many_target_key_conditioning_bin/"
@@ -74,6 +74,9 @@ def main():
         return_all_hiddens=True,
         classification_head_name="sequence_multitask_tagging_head",
     )  # type:ignore
+
+    # 2025/01/14 current model has 11 tasks
+    assert len(output) == 11, "Expecting 11 tasks"
 
     for o1, o2 in zip(output, output1):
         assert (o1 == o2).all()
