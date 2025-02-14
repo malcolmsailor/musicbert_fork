@@ -27,6 +27,7 @@ from musicbert._musicbert import (
     MusicBERTEncoder,
     MusicBERTModel,
     musicbert_base_architecture,
+    musicbert_small_architecture,
 )
 from musicbert.token_classification_multi_task import (
     AssertSameLengthDataset,
@@ -211,9 +212,7 @@ class DualEncoderMusicBERTHubInterface(RobertaHubInterface):
         if return_all_hiddens:
             # convert from T x B x C -> B x T x C
             inner_states = extra["inner_states"]
-            return [
-                inner_state.transpose(0, 1) for inner_state in inner_states
-            ]  # type:ignore
+            return [inner_state.transpose(0, 1) for inner_state in inner_states]  # type:ignore
         else:
             return features  # just the last layer's features
 
@@ -266,9 +265,18 @@ def musicbert_dual_encoder_architecture(args):
     args.z_combine_procedure = getattr(args, "z_combine_procedure", "concat")
 
 
+@register_model_architecture("musicbert_dual_encoder", "musicbert_dual_encoder_small")
+def musicbert_dual_encoder_small_architecture(args):
+    musicbert_small_architecture(args)
+    args.z_embed_dim = getattr(args, "z_embed_dim", 16)
+    args.z_vocab_size = getattr(args, "z_vocab_size", 16)
+    args.z_mlp_layers = getattr(args, "z_mlp_layers", 2)
+    args.z_mlp_norm = getattr(args, "z_mlp_norm", "yes")
+    args.z_combine_procedure = getattr(args, "z_combine_procedure", "concat")
+
+
 @register_task("musicbert_conditioned_multitask_sequence_tagging")
 class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
-
     @staticmethod
     def add_args(parser):
         MultiTaskSequenceTaggingTask.add_args(parser)
@@ -318,13 +326,12 @@ class DualEncoderMultiTaskSequenceTagging(MultiTaskSequenceTaggingTask):
 
     @classmethod
     def setup_task(cls, args, **kwargs):
-        data_dict, label_dicts = (
-            MultiTaskSequenceTaggingTask._setup_task_helper(  # type:ignore
-                args, **kwargs
-            )
+        data_dict, label_dicts = MultiTaskSequenceTaggingTask._setup_task_helper(  # type:ignore
+            args, **kwargs
         )
         cond_dict = cls.load_dictionary(
-            args, os.path.join(args.data, "conditioning", "dict.txt")  # type:ignore
+            args,
+            os.path.join(args.data, "conditioning", "dict.txt"),  # type:ignore
         )
         LOGGER.info(f"[conditioning] dictionary: {len(cond_dict)} types")
         return cls(args, data_dict, label_dicts, cond_dict)
